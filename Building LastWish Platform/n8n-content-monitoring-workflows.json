@@ -1,0 +1,422 @@
+{
+  "workflows": [
+    {
+      "name": "Content Freshness Monitor",
+      "description": "Monitors all LastWish content for outdated information and automatically updates or flags for review",
+      "trigger": "schedule",
+      "frequency": "weekly",
+      "nodes": [
+        {
+          "id": "weekly_content_scan",
+          "name": "Weekly Content Scan",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "dayOfWeek": 0,
+              "hour": 2,
+              "minute": 0,
+              "timezone": "America/New_York"
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "fetch_all_content",
+          "name": "Fetch All Content",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/content/audit",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}",
+              "Content-Type": "application/json"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "analyze_content_age",
+          "name": "Analyze Content Age",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Analyze content freshness and categorize by urgency\nconst content = $json.content || [];\nconst now = new Date();\nconst sixMonthsAgo = new Date(now.getTime() - (6 * 30 * 24 * 60 * 60 * 1000));\nconst oneYearAgo = new Date(now.getTime() - (365 * 24 * 60 * 60 * 1000));\n\nconst contentAnalysis = {\n  critical_updates: [],\n  moderate_updates: [],\n  minor_updates: [],\n  fresh_content: [],\n  broken_links: [],\n  outdated_legal_refs: []\n};\n\nfor (const item of content) {\n  const lastUpdated = new Date(item.last_updated);\n  const contentAge = now - lastUpdated;\n  const ageInDays = Math.floor(contentAge / (24 * 60 * 60 * 1000));\n  \n  const analysis = {\n    id: item.id,\n    title: item.title,\n    type: item.type,\n    last_updated: item.last_updated,\n    age_in_days: ageInDays,\n    category: item.category,\n    legal_references: item.legal_references || [],\n    external_links: item.external_links || [],\n    priority: 'low'\n  };\n  \n  // Categorize by content type and age\n  if (item.type === 'legal_document' || item.type === 'will_template') {\n    if (lastUpdated < oneYearAgo) {\n      analysis.priority = 'critical';\n      analysis.reason = 'Legal content over 1 year old';\n      contentAnalysis.critical_updates.push(analysis);\n    } else if (lastUpdated < sixMonthsAgo) {\n      analysis.priority = 'moderate';\n      analysis.reason = 'Legal content over 6 months old';\n      contentAnalysis.moderate_updates.push(analysis);\n    } else {\n      contentAnalysis.fresh_content.push(analysis);\n    }\n  } else if (item.type === 'educational_content' || item.type === 'guide') {\n    if (lastUpdated < oneYearAgo) {\n      analysis.priority = 'moderate';\n      analysis.reason = 'Educational content over 1 year old';\n      contentAnalysis.moderate_updates.push(analysis);\n    } else if (lastUpdated < sixMonthsAgo) {\n      analysis.priority = 'minor';\n      analysis.reason = 'Educational content over 6 months old';\n      contentAnalysis.minor_updates.push(analysis);\n    } else {\n      contentAnalysis.fresh_content.push(analysis);\n    }\n  }\n  \n  // Check for potentially outdated legal references\n  if (item.legal_references) {\n    for (const ref of item.legal_references) {\n      if (ref.year && ref.year < 2024) {\n        contentAnalysis.outdated_legal_refs.push({\n          content_id: item.id,\n          reference: ref,\n          age: 2025 - ref.year\n        });\n      }\n    }\n  }\n}\n\nreturn {\n  analysis: contentAnalysis,\n  summary: {\n    total_content: content.length,\n    critical_updates_needed: contentAnalysis.critical_updates.length,\n    moderate_updates_needed: contentAnalysis.moderate_updates.length,\n    minor_updates_needed: contentAnalysis.minor_updates.length,\n    fresh_content_count: contentAnalysis.fresh_content.length,\n    outdated_legal_refs_count: contentAnalysis.outdated_legal_refs.length\n  },\n  scan_date: now.toISOString()\n};"
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "nlweb_content_research",
+          "name": "NLWeb Content Research",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/research",
+            "method": "POST",
+            "headers": {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer {{$env.NLWEB_API_KEY}}"
+            },
+            "body": {
+              "query": "Research current best practices and legal updates for the following estate planning content areas. For each item, provide: 1) Current legal standards, 2) Recent changes or updates, 3) Best practice recommendations, 4) Suggested content improvements.",
+              "content_items": "{{$json.analysis.critical_updates.concat($json.analysis.moderate_updates)}}",
+              "research_focus": ["legal_accuracy", "current_best_practices", "user_experience", "compliance_requirements"],
+              "format": "content_update_recommendations"
+            }
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "generate_content_updates",
+          "name": "Generate Content Updates",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Generate specific content updates based on research\nconst research = $json.recommendations || [];\nconst originalAnalysis = $node['analyze_content_age'].json;\n\nconst contentUpdates = [];\nconst reviewQueue = [];\n\nfor (const recommendation of research) {\n  const update = {\n    content_id: recommendation.content_id,\n    current_title: recommendation.current_title,\n    update_type: recommendation.update_type || 'content_refresh',\n    priority: recommendation.priority,\n    changes: {\n      legal_updates: recommendation.legal_updates || [],\n      content_improvements: recommendation.content_improvements || [],\n      new_sections: recommendation.new_sections || [],\n      deprecated_sections: recommendation.deprecated_sections || []\n    },\n    automated_update: recommendation.can_auto_update || false,\n    requires_legal_review: recommendation.requires_legal_review || false,\n    estimated_effort: recommendation.estimated_effort || 'medium',\n    deadline: recommendation.deadline || null\n  };\n  \n  if (update.automated_update && !update.requires_legal_review) {\n    // Can be automatically updated\n    contentUpdates.push({\n      ...update,\n      action: 'auto_update',\n      new_content: recommendation.suggested_content\n    });\n  } else {\n    // Requires human review\n    reviewQueue.push({\n      ...update,\n      action: 'queue_for_review',\n      review_notes: recommendation.review_notes\n    });\n  }\n}\n\nreturn {\n  automated_updates: contentUpdates,\n  review_queue: reviewQueue,\n  update_summary: {\n    total_items: research.length,\n    auto_updates: contentUpdates.length,\n    manual_reviews: reviewQueue.length\n  },\n  processing_date: new Date().toISOString()\n};"
+          },
+          "position": [900, 100]
+        },
+        {
+          "id": "apply_automated_updates",
+          "name": "Apply Automated Updates",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/content/bulk-update",
+            "method": "POST",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "updates": "{{$json.automated_updates}}",
+              "source": "automated_content_refresh",
+              "timestamp": "{{$json.processing_date}}"
+            }
+          },
+          "position": [1100, 100]
+        },
+        {
+          "id": "queue_manual_reviews",
+          "name": "Queue Manual Reviews",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/content/review-queue",
+            "method": "POST",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "review_items": "{{$json.review_queue}}",
+              "priority_order": ["critical", "moderate", "minor"],
+              "assigned_to": "content_team",
+              "due_date": "{{new Date(Date.now() + 7*24*60*60*1000).toISOString()}}"
+            }
+          },
+          "position": [1100, 300]
+        },
+        {
+          "id": "send_content_report",
+          "name": "Send Content Report",
+          "type": "n8n-nodes-base.emailSend",
+          "parameters": {
+            "fromEmail": "content-bot@lastwish.com",
+            "toEmail": "content-team@lastwish.com",
+            "subject": "Weekly Content Freshness Report - {{$node['generate_content_updates'].json.update_summary.total_items}} Items Processed",
+            "message": "Weekly Content Freshness Report\\n\\nSummary:\\n- Total content items analyzed: {{$node['analyze_content_age'].json.summary.total_content}}\\n- Critical updates needed: {{$node['analyze_content_age'].json.summary.critical_updates_needed}}\\n- Moderate updates needed: {{$node['analyze_content_age'].json.summary.moderate_updates_needed}}\\n- Automated updates applied: {{$node['generate_content_updates'].json.update_summary.auto_updates}}\\n- Items queued for manual review: {{$node['generate_content_updates'].json.update_summary.manual_reviews}}\\n\\nDetailed analysis attached.\\n\\nThis is an automated report from the LastWish Content Management System."
+          },
+          "position": [1300, 200]
+        }
+      ],
+      "connections": {
+        "weekly_content_scan": {
+          "main": [["fetch_all_content"]]
+        },
+        "fetch_all_content": {
+          "main": [["analyze_content_age"]]
+        },
+        "analyze_content_age": {
+          "main": [["nlweb_content_research"]]
+        },
+        "nlweb_content_research": {
+          "main": [["generate_content_updates"]]
+        },
+        "generate_content_updates": {
+          "main": [["apply_automated_updates", "queue_manual_reviews", "send_content_report"]]
+        }
+      }
+    },
+    {
+      "name": "External Link Validator",
+      "description": "Validates all external links in LastWish content and updates or flags broken links",
+      "trigger": "schedule",
+      "frequency": "daily",
+      "nodes": [
+        {
+          "id": "daily_link_check",
+          "name": "Daily Link Check",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "hour": 4,
+              "minute": 30,
+              "timezone": "America/New_York"
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "extract_all_links",
+          "name": "Extract All Links",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/content/links",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "validate_links",
+          "name": "Validate Links",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Validate all external links\nconst links = $json.links || [];\nconst validationResults = [];\n\nfor (const link of links) {\n  try {\n    const response = await $http.request({\n      method: 'HEAD',\n      url: link.url,\n      timeout: 10000,\n      headers: {\n        'User-Agent': 'LastWish Link Validator 1.0'\n      }\n    });\n    \n    validationResults.push({\n      content_id: link.content_id,\n      url: link.url,\n      status: 'valid',\n      status_code: response.status,\n      response_time: response.responseTime || 0,\n      last_checked: new Date().toISOString()\n    });\n  } catch (error) {\n    validationResults.push({\n      content_id: link.content_id,\n      url: link.url,\n      status: 'invalid',\n      error: error.message,\n      status_code: error.response?.status || 0,\n      last_checked: new Date().toISOString()\n    });\n  }\n}\n\nconst summary = {\n  total_links: links.length,\n  valid_links: validationResults.filter(r => r.status === 'valid').length,\n  invalid_links: validationResults.filter(r => r.status === 'invalid').length,\n  validation_date: new Date().toISOString()\n};\n\nreturn {\n  results: validationResults,\n  summary: summary,\n  broken_links: validationResults.filter(r => r.status === 'invalid')\n};"
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "nlweb_link_replacement",
+          "name": "NLWeb Link Replacement",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/research",
+            "method": "POST",
+            "body": {
+              "query": "Find current, authoritative replacement links for these broken estate planning resources. For each broken link, provide: 1) The most current equivalent resource, 2) Alternative authoritative sources, 3) Government or official sources when available.",
+              "broken_links": "{{$json.broken_links}}",
+              "context": "estate_planning_resources",
+              "format": "link_replacements"
+            }
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "update_broken_links",
+          "name": "Update Broken Links",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/content/update-links",
+            "method": "POST",
+            "body": {
+              "link_updates": "{{$json.replacements}}",
+              "validation_results": "{{$node['validate_links'].json.results}}",
+              "source": "automated_link_validation"
+            }
+          },
+          "position": [900, 100]
+        }
+      ],
+      "connections": {
+        "daily_link_check": {
+          "main": [["extract_all_links"]]
+        },
+        "extract_all_links": {
+          "main": [["validate_links"]]
+        },
+        "validate_links": {
+          "main": [["nlweb_link_replacement"]]
+        },
+        "nlweb_link_replacement": {
+          "main": [["update_broken_links"]]
+        }
+      }
+    },
+    {
+      "name": "Estate Planning Guide Updater",
+      "description": "Automatically updates estate planning guides with current best practices and legal information",
+      "trigger": "schedule",
+      "frequency": "monthly",
+      "nodes": [
+        {
+          "id": "monthly_guide_update",
+          "name": "Monthly Guide Update",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "dayOfMonth": 15,
+              "hour": 10,
+              "minute": 0
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "fetch_guide_content",
+          "name": "Fetch Guide Content",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/guides/all",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "research_current_practices",
+          "name": "Research Current Practices",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/research",
+            "method": "POST",
+            "body": {
+              "query": "Research the latest estate planning best practices, legal developments, and expert recommendations for 2025. Focus on: 1) Digital asset planning, 2) Tax law changes, 3) State law variations, 4) Technology integration, 5) Common mistakes to avoid.",
+              "research_areas": [
+                "digital_estate_planning",
+                "tax_efficient_strategies",
+                "state_law_compliance",
+                "technology_tools",
+                "common_pitfalls"
+              ],
+              "format": "comprehensive_guide_updates"
+            }
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "generate_guide_updates",
+          "name": "Generate Guide Updates",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Generate updated guide content based on research\nconst guides = $node['fetch_guide_content'].json.guides || [];\nconst research = $json.research_findings || {};\n\nconst guideUpdates = [];\n\nfor (const guide of guides) {\n  const relevantResearch = research.findings?.filter(f => \n    f.topics.some(topic => guide.tags?.includes(topic))\n  ) || [];\n  \n  if (relevantResearch.length > 0) {\n    const updatedSections = [];\n    \n    // Update existing sections with new information\n    for (const section of guide.sections || []) {\n      const sectionUpdates = relevantResearch.filter(r => \n        r.section_relevance?.includes(section.id)\n      );\n      \n      if (sectionUpdates.length > 0) {\n        updatedSections.push({\n          id: section.id,\n          title: section.title,\n          current_content: section.content,\n          updates: sectionUpdates.map(u => ({\n            type: u.update_type,\n            content: u.new_content,\n            source: u.source,\n            confidence: u.confidence\n          })),\n          action: 'update_content'\n        });\n      }\n    }\n    \n    // Add new sections if recommended\n    const newSections = relevantResearch.filter(r => r.recommendation_type === 'new_section');\n    for (const newSection of newSections) {\n      updatedSections.push({\n        id: `new_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n        title: newSection.suggested_title,\n        content: newSection.suggested_content,\n        action: 'add_section',\n        priority: newSection.priority || 'medium'\n      });\n    }\n    \n    if (updatedSections.length > 0) {\n      guideUpdates.push({\n        guide_id: guide.id,\n        title: guide.title,\n        category: guide.category,\n        sections: updatedSections,\n        last_updated: new Date().toISOString(),\n        update_source: 'automated_research',\n        requires_review: updatedSections.some(s => s.action === 'add_section')\n      });\n    }\n  }\n}\n\nreturn {\n  guide_updates: guideUpdates,\n  summary: {\n    total_guides: guides.length,\n    guides_updated: guideUpdates.length,\n    sections_updated: guideUpdates.reduce((sum, g) => sum + g.sections.length, 0)\n  },\n  update_date: new Date().toISOString()\n};"
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "apply_guide_updates",
+          "name": "Apply Guide Updates",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/guides/bulk-update",
+            "method": "POST",
+            "body": {
+              "updates": "{{$json.guide_updates}}",
+              "source": "automated_guide_refresh",
+              "timestamp": "{{$json.update_date}}"
+            }
+          },
+          "position": [900, 100]
+        }
+      ],
+      "connections": {
+        "monthly_guide_update": {
+          "main": [["fetch_guide_content"]]
+        },
+        "fetch_guide_content": {
+          "main": [["research_current_practices"]]
+        },
+        "research_current_practices": {
+          "main": [["generate_guide_updates"]]
+        },
+        "generate_guide_updates": {
+          "main": [["apply_guide_updates"]]
+        }
+      }
+    },
+    {
+      "name": "SEO and Content Optimization",
+      "description": "Optimizes content for search engines and user experience",
+      "trigger": "schedule",
+      "frequency": "bi-weekly",
+      "nodes": [
+        {
+          "id": "seo_analysis_trigger",
+          "name": "SEO Analysis Trigger",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "dayOfWeek": 2,
+              "hour": 14,
+              "minute": 0,
+              "interval": 2
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "analyze_content_seo",
+          "name": "Analyze Content SEO",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/content/seo-analysis",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "nlweb_seo_optimization",
+          "name": "NLWeb SEO Optimization",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/optimize",
+            "method": "POST",
+            "body": {
+              "query": "Optimize this estate planning content for SEO and user experience. Provide: 1) Improved meta descriptions, 2) Better keyword targeting, 3) Content structure improvements, 4) Internal linking suggestions, 5) User experience enhancements.",
+              "content": "{{$json.content}}",
+              "focus_keywords": ["estate planning", "will creation", "digital assets", "inheritance planning"],
+              "format": "seo_optimization_recommendations"
+            }
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "apply_seo_updates",
+          "name": "Apply SEO Updates",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/content/seo-update",
+            "method": "POST",
+            "body": {
+              "optimizations": "{{$json.recommendations}}",
+              "source": "automated_seo_optimization"
+            }
+          },
+          "position": [700, 100]
+        }
+      ],
+      "connections": {
+        "seo_analysis_trigger": {
+          "main": [["analyze_content_seo"]]
+        },
+        "analyze_content_seo": {
+          "main": [["nlweb_seo_optimization"]]
+        },
+        "nlweb_seo_optimization": {
+          "main": [["apply_seo_updates"]]
+        }
+      }
+    }
+  ],
+  "deployment_configuration": {
+    "environment_variables": [
+      "NLWEB_API_KEY",
+      "LASTWISH_API_KEY",
+      "EMAIL_SERVICE_CONFIG"
+    ],
+    "monitoring": {
+      "content_freshness_threshold": "90%",
+      "broken_link_alert_threshold": "5%",
+      "update_success_rate_threshold": "95%"
+    },
+    "scheduling": {
+      "content_scan": "weekly",
+      "link_validation": "daily",
+      "guide_updates": "monthly",
+      "seo_optimization": "bi-weekly"
+    }
+  }
+}
+

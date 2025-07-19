@@ -1,0 +1,259 @@
+{
+  "name": "LastWish - Beneficiary Notification",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "beneficiary-added",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "beneficiary-webhook",
+      "name": "Beneficiary Added Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "beneficiary-added-webhook"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "email-exists",
+              "leftValue": "={{ $json.beneficiary.email }}",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "notEmpty"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-email",
+      "name": "Check If Email Exists",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare beneficiary notification email\nconst userData = $input.first().json.user;\nconst beneficiaryData = $input.first().json.beneficiary;\n\n// Generate personalized message based on relationship\nlet relationshipMessage = '';\nswitch(beneficiaryData.relationship) {\n  case 'spouse':\n    relationshipMessage = 'as your spouse';\n    break;\n  case 'child':\n    relationshipMessage = 'as your child';\n    break;\n  case 'parent':\n    relationshipMessage = 'as your parent';\n    break;\n  case 'sibling':\n    relationshipMessage = 'as your sibling';\n    break;\n  case 'friend':\n    relationshipMessage = 'as your friend';\n    break;\n  case 'charity':\n    relationshipMessage = 'as a charitable organization';\n    break;\n  default:\n    relationshipMessage = `as your ${beneficiaryData.relationship}`;\n}\n\nconst emailSubject = `You've been named as a beneficiary by ${userData.name}`;\n\nconst emailMessage = `Dear ${beneficiaryData.name},\n\nI hope this message finds you well. I wanted to inform you that ${userData.name} has named you as a beneficiary in their estate planning through LastWish, a secure digital estate planning platform.\n\nYou have been designated ${relationshipMessage} to receive assets or benefits as part of their estate plan. This is an important responsibility and honor.\n\n${beneficiaryData.is_minor ? \n  'Since you are currently under 18, a guardian has been designated to manage any inheritance on your behalf until you reach the age of majority.' : \n  'As an adult beneficiary, you may be contacted in the future regarding estate matters or to verify your contact information.'}\n\nWhat this means:\n- You are included in ${userData.name}'s estate planning\n- You may inherit assets or benefits according to their will\n- Your contact information will be kept secure and confidential\n- You may be contacted for verification purposes\n\nIf you have any questions about this designation or need to update your contact information, please contact ${userData.name} directly.\n\nThis notification is sent automatically by the LastWish platform to ensure all beneficiaries are aware of their designation.\n\nBest regards,\nThe LastWish Team\n\nNote: This is an automated notification. Please do not reply to this email.`;\n\nreturn {\n  email: {\n    to: beneficiaryData.email,\n    subject: emailSubject,\n    message: emailMessage\n  },\n  beneficiary: beneficiaryData,\n  user: userData,\n  notification_type: 'beneficiary_designation'\n};"
+      },
+      "id": "prepare-email",
+      "name": "Prepare Beneficiary Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/n8n/api/send-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "={{ $json.notification_type }}"
+            },
+            {
+              "name": "recipient_email",
+              "value": "={{ $json.email.to }}"
+            },
+            {
+              "name": "subject",
+              "value": "={{ $json.email.subject }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.email.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-beneficiary-email",
+      "name": "Send Beneficiary Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/n8n/api/send-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "beneficiary_confirmation"
+            },
+            {
+              "name": "recipient_email",
+              "value": "={{ $json.user.email }}"
+            },
+            {
+              "name": "subject",
+              "value": "Beneficiary Notification Sent"
+            },
+            {
+              "name": "message",
+              "value": "Dear {{ $json.user.name }},\\n\\nWe have successfully notified {{ $json.beneficiary.name }} that they have been named as a beneficiary in your estate plan.\\n\\nBeneficiary Details:\\n- Name: {{ $json.beneficiary.name }}\\n- Relationship: {{ $json.beneficiary.relationship }}\\n- Email: {{ $json.beneficiary.email }}\\n- Minor Status: {{ $json.beneficiary.is_minor ? 'Yes' : 'No' }}\\n\\nThe beneficiary has been informed of their designation and the importance of this responsibility.\\n\\nBest regards,\\nThe LastWish Team"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-user-confirmation",
+      "name": "Send User Confirmation",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [680, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log notification for users without email\nconst beneficiaryData = $input.first().json.beneficiary;\nconst userData = $input.first().json.user;\n\nconsole.log(`Beneficiary ${beneficiaryData.name} added by ${userData.name} but no email provided for notification`);\n\nreturn {\n  status: 'no_email',\n  message: 'Beneficiary added but no email notification sent',\n  beneficiary: beneficiaryData,\n  user: userData\n};"
+      },
+      "id": "log-no-email",
+      "name": "Log No Email Case",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 500]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"success\", \"message\": \"Beneficiary notification workflow completed\", \"email_sent\": $json.email ? true : false } }}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Beneficiary Added Webhook": {
+      "main": [
+        [
+          {
+            "node": "Check If Email Exists",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Email Exists": {
+      "main": [
+        [
+          {
+            "node": "Prepare Beneficiary Email",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Send User Confirmation",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log No Email Case",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Beneficiary Email": {
+      "main": [
+        [
+          {
+            "node": "Send Beneficiary Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Beneficiary Email": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send User Confirmation": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log No Email Case": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "beneficiary-notification",
+  "tags": [
+    {
+      "createdAt": "2025-01-17T20:00:00.000Z",
+      "updatedAt": "2025-01-17T20:00:00.000Z",
+      "id": "estate-planning",
+      "name": "Estate Planning"
+    }
+  ]
+}
+

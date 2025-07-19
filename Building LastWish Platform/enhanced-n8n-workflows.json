@@ -1,0 +1,669 @@
+{
+  "workflows": [
+    {
+      "name": "Digital Asset Schedule PDF Generation",
+      "description": "Generates comprehensive PDF schedules for digital assets including crypto wallets, NFTs, and online accounts",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "/webhook/digital-assets-schedule",
+            "responseMode": "responseNode",
+            "options": {}
+          },
+          "name": "Digital Assets Webhook",
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 1,
+          "position": [240, 300],
+          "webhookId": "digital-assets-schedule"
+        },
+        {
+          "parameters": {
+            "functionCode": "// Process and validate digital assets data\nconst digitalAssets = $json.digital_assets || [];\nconst userInfo = $json.user_info || {};\nconst currentDate = new Date().toISOString().split('T')[0];\n\n// Categorize assets by type\nconst categorizedAssets = {\n  cryptocurrency: [],\n  nfts: [],\n  online_accounts: [],\n  domain_names: [],\n  digital_files: []\n};\n\ndigitalAssets.forEach(asset => {\n  if (categorizedAssets[asset.type]) {\n    categorizedAssets[asset.type].push(asset);\n  }\n});\n\n// Calculate total portfolio value\nconst totalValue = digitalAssets.reduce((sum, asset) => {\n  return sum + (parseFloat(asset.estimated_value) || 0);\n}, 0);\n\n// Prepare data for PDF template\nconst pdfData = {\n  user_name: userInfo.name || 'Estate Owner',\n  user_address: userInfo.address || '',\n  date: currentDate,\n  total_digital_assets: digitalAssets.length,\n  total_estimated_value: totalValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' }),\n  categorized_assets: categorizedAssets,\n  digital_assets: digitalAssets.map(asset => ({\n    ...asset,\n    formatted_value: parseFloat(asset.estimated_value || 0).toLocaleString('en-US', { style: 'currency', currency: 'USD' }),\n    wallet_address_short: asset.wallet_address ? `${asset.wallet_address.substring(0, 10)}...${asset.wallet_address.substring(asset.wallet_address.length - 8)}` : 'N/A'\n  })),\n  generation_timestamp: new Date().toISOString()\n};\n\nreturn { json: pdfData };"
+          },
+          "name": "Process Digital Assets Data",
+          "type": "n8n-nodes-base.function",
+          "typeVersion": 1,
+          "position": [460, 300]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.docspring.com/v1/templates/tpl_digital_assets_schedule/submissions",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"data\": $json,\n  \"metadata\": {\n    \"user_id\": $json.user_info?.id || 'demo_user',\n    \"document_type\": \"digital_assets_schedule\",\n    \"generated_at\": $json.generation_timestamp\n  }\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Authorization",
+                  "value": "Bearer YOUR_DOCSPRING_API_KEY"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          },
+          "name": "Generate Digital Assets PDF",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [680, 300]
+        },
+        {
+          "parameters": {
+            "conditions": {
+              "string": [
+                {
+                  "value1": "={{$json.status}}",
+                  "operation": "equal",
+                  "value2": "success"
+                }
+              ]
+            }
+          },
+          "name": "PDF Generation Success?",
+          "type": "n8n-nodes-base.if",
+          "typeVersion": 1,
+          "position": [900, 300]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.lastwish.com/api/documents/store",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"user_id\": $json.metadata?.user_id,\n  \"document_type\": \"digital_assets_schedule\",\n  \"pdf_url\": $json.download_url,\n  \"document_id\": $json.submission?.id,\n  \"generated_at\": $json.metadata?.generated_at,\n  \"status\": \"completed\"\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Authorization",
+                  "value": "Bearer {{$env.LASTWISH_API_KEY}}"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          },
+          "name": "Store PDF Reference",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [1120, 200]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.lastwish.com/api/notifications/send",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"user_id\": $json.metadata?.user_id,\n  \"type\": \"document_ready\",\n  \"title\": \"Digital Assets Schedule Generated\",\n  \"message\": \"Your comprehensive digital assets schedule has been generated and is ready for download.\",\n  \"document_url\": $json.download_url,\n  \"priority\": \"normal\"\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Authorization",
+                  "value": "Bearer {{$env.LASTWISH_API_KEY}}"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          },
+          "name": "Notify User - Success",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [1340, 200]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.lastwish.com/api/notifications/send",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"user_id\": $json.metadata?.user_id || 'unknown',\n  \"type\": \"document_error\",\n  \"title\": \"Digital Assets Schedule Generation Failed\",\n  \"message\": \"There was an error generating your digital assets schedule. Please try again or contact support.\",\n  \"priority\": \"high\",\n  \"error_details\": $json.error || 'Unknown error'\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Authorization",
+                  "value": "Bearer {{$env.LASTWISH_API_KEY}}"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          },
+          "name": "Notify User - Error",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [1120, 400]
+        },
+        {
+          "parameters": {
+            "respondWith": "json",
+            "responseBody": "={{ {\n  \"success\": true,\n  \"message\": \"Digital assets schedule generated successfully\",\n  \"document_url\": $json.download_url,\n  \"document_id\": $json.submission?.id\n} }}"
+          },
+          "name": "Success Response",
+          "type": "n8n-nodes-base.respondToWebhook",
+          "typeVersion": 1,
+          "position": [1560, 200]
+        },
+        {
+          "parameters": {
+            "respondWith": "json",
+            "responseBody": "={{ {\n  \"success\": false,\n  \"message\": \"Failed to generate digital assets schedule\",\n  \"error\": $json.error || 'Unknown error occurred'\n} }}"
+          },
+          "name": "Error Response",
+          "type": "n8n-nodes-base.respondToWebhook",
+          "typeVersion": 1,
+          "position": [1340, 400]
+        }
+      ],
+      "connections": {
+        "Digital Assets Webhook": {
+          "main": [
+            [
+              {
+                "node": "Process Digital Assets Data",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Process Digital Assets Data": {
+          "main": [
+            [
+              {
+                "node": "Generate Digital Assets PDF",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Generate Digital Assets PDF": {
+          "main": [
+            [
+              {
+                "node": "PDF Generation Success?",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "PDF Generation Success?": {
+          "main": [
+            [
+              {
+                "node": "Store PDF Reference",
+                "type": "main",
+                "index": 0
+              }
+            ],
+            [
+              {
+                "node": "Notify User - Error",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Store PDF Reference": {
+          "main": [
+            [
+              {
+                "node": "Notify User - Success",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Notify User - Success": {
+          "main": [
+            [
+              {
+                "node": "Success Response",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Notify User - Error": {
+          "main": [
+            [
+              {
+                "node": "Error Response",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "Smart Contract Inheritance Deployment",
+      "description": "Deploys smart contracts for automated crypto inheritance with dead-man's switch functionality",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "/webhook/deploy-inheritance-contract",
+            "responseMode": "responseNode",
+            "options": {}
+          },
+          "name": "Contract Deployment Webhook",
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 1,
+          "position": [240, 300],
+          "webhookId": "deploy-inheritance-contract"
+        },
+        {
+          "parameters": {
+            "functionCode": "// Validate and prepare smart contract deployment data\nconst contractData = $json.contract_data || {};\nconst userInfo = $json.user_info || {};\nconst beneficiaries = $json.beneficiaries || [];\n\n// Validate required fields\nif (!contractData.wallet_address || !contractData.network) {\n  throw new Error('Wallet address and network are required');\n}\n\nif (beneficiaries.length === 0) {\n  throw new Error('At least one beneficiary is required');\n}\n\n// Prepare contract parameters\nconst contractParams = {\n  owner: contractData.wallet_address,\n  network: contractData.network,\n  heartbeat_interval: contractData.heartbeat_interval || 15552000, // 6 months in seconds\n  beneficiaries: beneficiaries.map(b => ({\n    address: b.wallet_address,\n    percentage: b.inheritance_percentage || 0,\n    name: b.name\n  })),\n  total_percentage: beneficiaries.reduce((sum, b) => sum + (b.inheritance_percentage || 0), 0),\n  deployment_timestamp: Math.floor(Date.now() / 1000),\n  contract_type: 'inheritance_with_heartbeat'\n};\n\n// Validate percentages add up to 100\nif (contractParams.total_percentage !== 100) {\n  throw new Error(`Beneficiary percentages must add up to 100%, currently: ${contractParams.total_percentage}%`);\n}\n\nreturn { json: contractParams };"
+          },
+          "name": "Validate Contract Data",
+          "type": "n8n-nodes-base.function",
+          "typeVersion": 1,
+          "position": [460, 300]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.alchemy.com/v2/{{$env.ALCHEMY_API_KEY}}",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"jsonrpc\": \"2.0\",\n  \"method\": \"eth_deployContract\",\n  \"params\": [\n    {\n      \"from\": $json.owner,\n      \"data\": \"0x608060405234801561001057600080fd5b50604051610a38380380610a388339818101604052810190610032919061007a565b80600081905550506100a7565b600080fd5b6000819050919050565b61005781610044565b811461006257600080fd5b50565b6000815190506100748161004e565b92915050565b6000602082840312156100905761008f61003f565b5b600061009e84828501610065565b91505092915050565b610982806100b66000396000f3fe\",\n      \"gas\": \"0x76c0\",\n      \"gasPrice\": \"0x9184e72a000\",\n      \"value\": \"0x0\",\n      \"constructor_args\": [\n        $json.heartbeat_interval,\n        $json.beneficiaries\n      ]\n    }\n  ],\n  \"id\": 1\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                },
+                {
+                  "name": "Authorization",
+                  "value": "Bearer {{$env.ALCHEMY_API_KEY}}"
+                }
+              ]
+            }
+          },
+          "name": "Deploy Smart Contract",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [680, 300]
+        },
+        {
+          "parameters": {
+            "conditions": {
+              "string": [
+                {
+                  "value1": "={{$json.result}}",
+                  "operation": "isNotEmpty"
+                }
+              ]
+            }
+          },
+          "name": "Deployment Successful?",
+          "type": "n8n-nodes-base.if",
+          "typeVersion": 1,
+          "position": [900, 300]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.lastwish.com/api/smart-contracts/register",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"user_id\": $json.user_info?.id,\n  \"contract_address\": $json.result,\n  \"network\": $json.network,\n  \"contract_type\": \"inheritance_with_heartbeat\",\n  \"beneficiaries\": $json.beneficiaries,\n  \"heartbeat_interval\": $json.heartbeat_interval,\n  \"deployment_tx\": $json.result,\n  \"status\": \"active\",\n  \"deployed_at\": new Date().toISOString()\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Authorization",
+                  "value": "Bearer {{$env.LASTWISH_API_KEY}}"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          },
+          "name": "Register Contract",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [1120, 200]
+        },
+        {
+          "parameters": {
+            "rule": {
+              "interval": [
+                {
+                  "field": "cronExpression",
+                  "expression": "0 0 */7 * * *"
+                }
+              ]
+            }
+          },
+          "name": "Weekly Heartbeat Reminder",
+          "type": "n8n-nodes-base.cron",
+          "typeVersion": 1,
+          "position": [1340, 100]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.lastwish.com/api/notifications/heartbeat-reminder",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"contract_address\": $json.result,\n  \"user_id\": $json.user_info?.id,\n  \"type\": \"heartbeat_reminder\",\n  \"title\": \"Smart Contract Heartbeat Required\",\n  \"message\": \"Please send a heartbeat transaction to your inheritance smart contract to maintain active status.\",\n  \"contract_network\": $json.network,\n  \"next_deadline\": new Date(Date.now() + ($json.heartbeat_interval * 1000)).toISOString()\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Authorization",
+                  "value": "Bearer {{$env.LASTWISH_API_KEY}}"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          },
+          "name": "Send Heartbeat Reminder",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [1560, 100]
+        }
+      ],
+      "connections": {
+        "Contract Deployment Webhook": {
+          "main": [
+            [
+              {
+                "node": "Validate Contract Data",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Validate Contract Data": {
+          "main": [
+            [
+              {
+                "node": "Deploy Smart Contract",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Deploy Smart Contract": {
+          "main": [
+            [
+              {
+                "node": "Deployment Successful?",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Deployment Successful?": {
+          "main": [
+            [
+              {
+                "node": "Register Contract",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Register Contract": {
+          "main": [
+            [
+              {
+                "node": "Weekly Heartbeat Reminder",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Weekly Heartbeat Reminder": {
+          "main": [
+            [
+              {
+                "node": "Send Heartbeat Reminder",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      }
+    },
+    {
+      "name": "Comprehensive Will Generation",
+      "description": "Generates complete legal will documents with digital asset schedules and blockchain provisions",
+      "nodes": [
+        {
+          "parameters": {
+            "httpMethod": "POST",
+            "path": "/webhook/generate-complete-will",
+            "responseMode": "responseNode",
+            "options": {}
+          },
+          "name": "Will Generation Webhook",
+          "type": "n8n-nodes-base.webhook",
+          "typeVersion": 1,
+          "position": [240, 300],
+          "webhookId": "generate-complete-will"
+        },
+        {
+          "parameters": {
+            "functionCode": "// Process comprehensive will data including digital assets\nconst willData = $json.will_data || {};\nconst userInfo = $json.user_info || {};\nconst assets = $json.assets || [];\nconst digitalAssets = $json.digital_assets || [];\nconst beneficiaries = $json.beneficiaries || [];\nconst guardians = $json.guardians || [];\n\n// Categorize assets\nconst traditionalAssets = assets.filter(a => !['cryptocurrency', 'nft', 'digital_account'].includes(a.type));\nconst cryptoAssets = digitalAssets.filter(a => ['cryptocurrency', 'nft'].includes(a.type));\nconst digitalAccounts = digitalAssets.filter(a => a.type === 'digital_account');\n\n// Calculate total estate value\nconst traditionalValue = traditionalAssets.reduce((sum, asset) => sum + (parseFloat(asset.value) || 0), 0);\nconst digitalValue = digitalAssets.reduce((sum, asset) => sum + (parseFloat(asset.estimated_value) || 0), 0);\nconst totalEstateValue = traditionalValue + digitalValue;\n\n// Prepare comprehensive will document data\nconst completeWillData = {\n  // Testator Information\n  testator: {\n    full_name: userInfo.full_name || '',\n    address: userInfo.address || '',\n    date_of_birth: userInfo.date_of_birth || '',\n    social_security: userInfo.social_security ? `***-**-${userInfo.social_security.slice(-4)}` : '',\n    state_of_residence: userInfo.state || ''\n  },\n  \n  // Will Metadata\n  will_info: {\n    execution_date: new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }),\n    jurisdiction: willData.jurisdiction || userInfo.state || 'State of Residence',\n    will_type: 'Last Will and Testament with Digital Asset Provisions',\n    document_version: '2.0',\n    total_estate_value: totalEstateValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })\n  },\n  \n  // Executor Information\n  executor: {\n    primary: willData.executor_primary || {},\n    alternate: willData.executor_alternate || {},\n    digital_executor: willData.digital_executor || {}\n  },\n  \n  // Guardian Information (for minor children)\n  guardians: guardians.map(g => ({\n    ...g,\n    relationship_to_children: g.relationship || 'Guardian'\n  })),\n  \n  // Beneficiaries with inheritance details\n  beneficiaries: beneficiaries.map(b => ({\n    ...b,\n    traditional_inheritance: traditionalAssets.filter(a => a.beneficiaries?.includes(b.name)),\n    digital_inheritance: digitalAssets.filter(a => a.beneficiaries?.includes(b.name)),\n    total_inheritance_value: (\n      traditionalAssets.filter(a => a.beneficiaries?.includes(b.name)).reduce((sum, a) => sum + (parseFloat(a.value) || 0), 0) +\n      digitalAssets.filter(a => a.beneficiaries?.includes(b.name)).reduce((sum, a) => sum + (parseFloat(a.estimated_value) || 0), 0)\n    ).toLocaleString('en-US', { style: 'currency', currency: 'USD' })\n  })),\n  \n  // Asset Schedules\n  asset_schedules: {\n    schedule_a_real_estate: traditionalAssets.filter(a => a.type === 'real_estate'),\n    schedule_b_personal_property: traditionalAssets.filter(a => ['personal_property', 'vehicle', 'jewelry'].includes(a.type)),\n    schedule_c_financial_accounts: traditionalAssets.filter(a => ['bank_account', 'investment', 'retirement'].includes(a.type)),\n    schedule_d_digital_assets: {\n      cryptocurrency: cryptoAssets,\n      digital_accounts: digitalAccounts,\n      total_digital_value: digitalValue.toLocaleString('en-US', { style: 'currency', currency: 'USD' })\n    }\n  },\n  \n  // Special Provisions\n  special_provisions: {\n    digital_asset_clause: true,\n    cryptocurrency_provisions: cryptoAssets.length > 0,\n    smart_contract_references: willData.smart_contracts || [],\n    digital_executor_powers: [\n      'Access and manage cryptocurrency wallets',\n      'Transfer digital assets to beneficiaries',\n      'Manage online accounts and digital files',\n      'Execute smart contract inheritance provisions'\n    ],\n    final_wishes: willData.final_wishes || ''\n  },\n  \n  // Legal Compliance\n  legal_compliance: {\n    witness_requirements: willData.jurisdiction === 'California' ? 2 : 2, // Most states require 2 witnesses\n    notarization_required: ['Louisiana', 'North Carolina'].includes(willData.jurisdiction),\n    self_proving_affidavit: true,\n    digital_signature_valid: willData.jurisdiction !== 'New York' // NY has specific requirements\n  },\n  \n  // Generation metadata\n  generation_info: {\n    generated_at: new Date().toISOString(),\n    platform: 'LastWish Estate Planning',\n    document_id: `LW-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,\n    template_version: '2.1'\n  }\n};\n\nreturn { json: completeWillData };"
+          },
+          "name": "Process Will Data",
+          "type": "n8n-nodes-base.function",
+          "typeVersion": 1,
+          "position": [460, 300]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.docspring.com/v1/templates/tpl_comprehensive_will/submissions",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"data\": $json,\n  \"metadata\": {\n    \"user_id\": $json.testator?.id || 'demo_user',\n    \"document_type\": \"comprehensive_will\",\n    \"jurisdiction\": $json.will_info?.jurisdiction,\n    \"generated_at\": $json.generation_info?.generated_at,\n    \"includes_digital_assets\": $json.asset_schedules?.schedule_d_digital_assets?.cryptocurrency?.length > 0\n  }\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Authorization",
+                  "value": "Bearer YOUR_DOCSPRING_API_KEY"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          },
+          "name": "Generate Will PDF",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [680, 300]
+        },
+        {
+          "parameters": {
+            "conditions": {
+              "string": [
+                {
+                  "value1": "={{$json.status}}",
+                  "operation": "equal",
+                  "value2": "success"
+                }
+              ]
+            }
+          },
+          "name": "Will Generation Success?",
+          "type": "n8n-nodes-base.if",
+          "typeVersion": 1,
+          "position": [900, 300]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.lastwish.com/api/wills/store",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"user_id\": $json.metadata?.user_id,\n  \"will_type\": \"comprehensive_with_digital_assets\",\n  \"pdf_url\": $json.download_url,\n  \"document_id\": $json.submission?.id,\n  \"jurisdiction\": $json.metadata?.jurisdiction,\n  \"total_estate_value\": $json.will_info?.total_estate_value,\n  \"includes_digital_assets\": $json.metadata?.includes_digital_assets,\n  \"status\": \"draft\",\n  \"generated_at\": $json.metadata?.generated_at,\n  \"requires_witnesses\": true,\n  \"requires_notarization\": $json.legal_compliance?.notarization_required\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Authorization",
+                  "value": "Bearer {{$env.LASTWISH_API_KEY}}"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          },
+          "name": "Store Will Document",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [1120, 200]
+        },
+        {
+          "parameters": {
+            "authentication": "headerAuth",
+            "url": "https://api.lastwish.com/api/notifications/send",
+            "method": "POST",
+            "jsonParameters": true,
+            "bodyParametersJson": "={{ {\n  \"user_id\": $json.metadata?.user_id,\n  \"type\": \"will_generated\",\n  \"title\": \"Your Will Has Been Generated\",\n  \"message\": \"Your comprehensive will including digital asset provisions has been generated and is ready for review. Please download, review, and arrange for proper execution with witnesses.\",\n  \"document_url\": $json.download_url,\n  \"next_steps\": [\n    \"Download and review your will document\",\n    \"Arrange for witness signatures (2 witnesses required)\",\n    \"Consider notarization if required in your jurisdiction\",\n    \"Store the executed will in a safe location\",\n    \"Inform your executor of the will's location\"\n  ],\n  \"priority\": \"high\"\n} }}",
+            "headerParametersUi": {
+              "parameter": [
+                {
+                  "name": "Authorization",
+                  "value": "Bearer {{$env.LASTWISH_API_KEY}}"
+                },
+                {
+                  "name": "Content-Type",
+                  "value": "application/json"
+                }
+              ]
+            }
+          },
+          "name": "Notify User - Will Ready",
+          "type": "n8n-nodes-base.httpRequest",
+          "typeVersion": 1,
+          "position": [1340, 200]
+        }
+      ],
+      "connections": {
+        "Will Generation Webhook": {
+          "main": [
+            [
+              {
+                "node": "Process Will Data",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Process Will Data": {
+          "main": [
+            [
+              {
+                "node": "Generate Will PDF",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Generate Will PDF": {
+          "main": [
+            [
+              {
+                "node": "Will Generation Success?",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Will Generation Success?": {
+          "main": [
+            [
+              {
+                "node": "Store Will Document",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        },
+        "Store Will Document": {
+          "main": [
+            [
+              {
+                "node": "Notify User - Will Ready",
+                "type": "main",
+                "index": 0
+              }
+            ]
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_guide": {
+    "required_environment_variables": [
+      "DOCSPRING_API_KEY - Your DocSpring API key for PDF generation",
+      "LASTWISH_API_KEY - Your LastWish platform API key",
+      "ALCHEMY_API_KEY - Alchemy API key for blockchain interactions",
+      "WEBHOOK_BASE_URL - Base URL for your n8n webhooks"
+    ],
+    "pdf_templates": {
+      "digital_assets_schedule": {
+        "template_id": "tpl_digital_assets_schedule",
+        "description": "Template for generating comprehensive digital asset schedules",
+        "required_fields": [
+          "user_name", "date", "digital_assets", "categorized_assets", "total_estimated_value"
+        ]
+      },
+      "comprehensive_will": {
+        "template_id": "tpl_comprehensive_will",
+        "description": "Complete will template with digital asset provisions",
+        "required_fields": [
+          "testator", "will_info", "executor", "beneficiaries", "asset_schedules", "special_provisions"
+        ]
+      }
+    },
+    "smart_contract_networks": [
+      "ethereum", "polygon", "bsc", "avalanche"
+    ],
+    "legal_compliance_notes": {
+      "witness_requirements": "Most states require 2 witnesses for will execution",
+      "notarization": "Some states require notarization (Louisiana, North Carolina)",
+      "digital_signatures": "Not all states accept digital signatures for wills",
+      "jurisdiction_specific": "Always consult local estate planning attorney for jurisdiction-specific requirements"
+    }
+  }
+}
+

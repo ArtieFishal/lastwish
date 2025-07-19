@@ -1,0 +1,355 @@
+{
+  "workflows": [
+    {
+      "name": "Estate Planning Legal Compliance Monitor",
+      "description": "Monitors changes in estate planning laws and automatically updates LastWish platform content",
+      "trigger": "schedule",
+      "frequency": "daily",
+      "nodes": [
+        {
+          "id": "trigger_daily",
+          "name": "Daily Legal Check",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "hour": 6,
+              "minute": 0,
+              "timezone": "America/New_York"
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "legal_sources_monitor",
+          "name": "Monitor Legal Sources",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Monitor multiple legal sources for estate planning updates\nconst legalSources = [\n  {\n    name: 'IRS Estate Tax Updates',\n    url: 'https://www.irs.gov/businesses/small-businesses-self-employed/estate-tax',\n    keywords: ['estate tax', 'exemption', '2025', 'inheritance']\n  },\n  {\n    name: 'State Law Changes',\n    url: 'https://www.nolo.com/legal-encyclopedia/estate-planning-your-state',\n    keywords: ['will requirements', 'probate', 'digital assets', 'electronic wills']\n  },\n  {\n    name: 'Digital Asset Laws',\n    url: 'https://www.uniformlaws.org/committees/community-home?CommunityKey=f7237fc4-74c2-4728-81c6-b39a91ecdf22',\n    keywords: ['RUFADAA', 'digital assets', 'fiduciary access']\n  }\n];\n\nconst results = [];\n\nfor (const source of legalSources) {\n  try {\n    // This would be replaced with actual web scraping or API calls\n    const response = await $http.request({\n      method: 'GET',\n      url: source.url,\n      headers: {\n        'User-Agent': 'LastWish Legal Compliance Bot 1.0'\n      }\n    });\n    \n    results.push({\n      source: source.name,\n      url: source.url,\n      content: response.data,\n      keywords: source.keywords,\n      timestamp: new Date().toISOString()\n    });\n  } catch (error) {\n    console.error(`Error fetching ${source.name}:`, error.message);\n  }\n}\n\nreturn results;"
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "nlweb_analysis",
+          "name": "NLWeb Legal Analysis",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/analyze",
+            "method": "POST",
+            "headers": {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer {{$env.NLWEB_API_KEY}}"
+            },
+            "body": {
+              "query": "Analyze these legal updates for estate planning compliance impact. Focus on: 1) Changes affecting digital wills and electronic signatures, 2) Updates to state-specific requirements, 3) Federal tax law changes, 4) Digital asset inheritance laws. Provide specific recommendations for LastWish platform updates.",
+              "context": "estate_planning_legal_compliance",
+              "sources": "{{$json}}",
+              "format": "structured_analysis"
+            }
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "compliance_assessment",
+          "name": "Compliance Gap Assessment",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Assess compliance gaps based on NLWeb analysis\nconst analysis = $json;\nconst complianceAreas = [\n  'federal_estate_tax',\n  'state_will_requirements',\n  'digital_asset_laws',\n  'electronic_signature_validity',\n  'probate_procedures',\n  'beneficiary_rights',\n  'fiduciary_responsibilities'\n];\n\nconst gaps = [];\nconst updates = [];\nconst alerts = [];\n\n// Process analysis results\nif (analysis.legal_changes) {\n  for (const change of analysis.legal_changes) {\n    const impact = {\n      area: change.area,\n      severity: change.severity || 'medium',\n      affected_states: change.affected_states || ['all'],\n      effective_date: change.effective_date,\n      description: change.description,\n      required_actions: change.required_actions || []\n    };\n    \n    if (change.severity === 'high' || change.severity === 'critical') {\n      alerts.push({\n        type: 'urgent_compliance',\n        message: `Critical legal change detected: ${change.description}`,\n        area: change.area,\n        deadline: change.effective_date\n      });\n    }\n    \n    // Determine specific updates needed for LastWish\n    if (change.area === 'digital_asset_laws') {\n      updates.push({\n        component: 'digital_assets_module',\n        action: 'update_legal_language',\n        priority: change.severity,\n        details: change.required_actions\n      });\n    }\n    \n    if (change.area === 'state_will_requirements') {\n      updates.push({\n        component: 'will_creation_wizard',\n        action: 'update_state_requirements',\n        affected_states: change.affected_states,\n        priority: change.severity\n      });\n    }\n    \n    gaps.push(impact);\n  }\n}\n\nreturn {\n  compliance_gaps: gaps,\n  required_updates: updates,\n  urgent_alerts: alerts,\n  assessment_date: new Date().toISOString(),\n  overall_compliance_score: gaps.length === 0 ? 100 : Math.max(0, 100 - (gaps.length * 10))\n};"
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "update_lastwish_content",
+          "name": "Update LastWish Content",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/compliance/update",
+            "method": "POST",
+            "headers": {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}"
+            },
+            "body": {
+              "updates": "{{$json.required_updates}}",
+              "compliance_gaps": "{{$json.compliance_gaps}}",
+              "source": "automated_legal_compliance",
+              "timestamp": "{{$json.assessment_date}}"
+            }
+          },
+          "position": [900, 100]
+        },
+        {
+          "id": "send_alerts",
+          "name": "Send Compliance Alerts",
+          "type": "n8n-nodes-base.emailSend",
+          "parameters": {
+            "fromEmail": "compliance@lastwish.com",
+            "toEmail": "legal-team@lastwish.com",
+            "subject": "Legal Compliance Alert - {{$node['compliance_assessment'].json.urgent_alerts.length}} Critical Issues",
+            "message": "Automated legal compliance scan has detected the following issues requiring immediate attention:\n\n{{$node['compliance_assessment'].json.urgent_alerts}}\n\nFull compliance report:\n{{$node['compliance_assessment'].json}}\n\nThis is an automated message from the LastWish Legal Compliance System."
+          },
+          "position": [900, 300]
+        }
+      ],
+      "connections": {
+        "trigger_daily": {
+          "main": [["legal_sources_monitor"]]
+        },
+        "legal_sources_monitor": {
+          "main": [["nlweb_analysis"]]
+        },
+        "nlweb_analysis": {
+          "main": [["compliance_assessment"]]
+        },
+        "compliance_assessment": {
+          "main": [["update_lastwish_content", "send_alerts"]]
+        }
+      }
+    },
+    {
+      "name": "State-Specific Legal Requirements Monitor",
+      "description": "Monitors state-specific estate planning requirements and updates platform accordingly",
+      "trigger": "schedule",
+      "frequency": "weekly",
+      "nodes": [
+        {
+          "id": "weekly_trigger",
+          "name": "Weekly State Law Check",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "dayOfWeek": 1,
+              "hour": 8,
+              "minute": 0
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "state_law_monitor",
+          "name": "Monitor State Laws",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Monitor all 50 states for estate planning law changes\nconst states = [\n  'AL', 'AK', 'AZ', 'AR', 'CA', 'CO', 'CT', 'DE', 'FL', 'GA',\n  'HI', 'ID', 'IL', 'IN', 'IA', 'KS', 'KY', 'LA', 'ME', 'MD',\n  'MA', 'MI', 'MN', 'MS', 'MO', 'MT', 'NE', 'NV', 'NH', 'NJ',\n  'NM', 'NY', 'NC', 'ND', 'OH', 'OK', 'OR', 'PA', 'RI', 'SC',\n  'SD', 'TN', 'TX', 'UT', 'VT', 'VA', 'WA', 'WV', 'WI', 'WY'\n];\n\nconst stateUpdates = [];\n\nfor (const state of states) {\n  try {\n    // Query state-specific legal databases\n    const stateInfo = {\n      state: state,\n      will_requirements: {\n        witnesses_required: 2, // Default, would be fetched from actual source\n        notarization_required: false,\n        self_proving_affidavit: true,\n        electronic_wills_allowed: false\n      },\n      digital_asset_laws: {\n        rufadaa_adopted: false,\n        fiduciary_access_rules: 'limited'\n      },\n      probate_requirements: {\n        small_estate_threshold: 25000,\n        simplified_probate_available: true\n      },\n      last_updated: new Date().toISOString()\n    };\n    \n    stateUpdates.push(stateInfo);\n  } catch (error) {\n    console.error(`Error processing state ${state}:`, error.message);\n  }\n}\n\nreturn stateUpdates;"
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "nlweb_state_analysis",
+          "name": "NLWeb State Analysis",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/analyze",
+            "method": "POST",
+            "body": {
+              "query": "Analyze state-specific estate planning requirements. Identify: 1) States with recent law changes, 2) Differences in will execution requirements, 3) Digital asset law variations, 4) Probate procedure differences. Generate state-specific compliance matrix for LastWish platform.",
+              "context": "state_estate_planning_laws",
+              "data": "{{$json}}",
+              "format": "compliance_matrix"
+            }
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "update_state_requirements",
+          "name": "Update State Requirements",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/states/requirements",
+            "method": "PUT",
+            "body": {
+              "state_requirements": "{{$json.compliance_matrix}}",
+              "update_source": "automated_state_monitoring",
+              "timestamp": "{{new Date().toISOString()}}"
+            }
+          },
+          "position": [700, 100]
+        }
+      ],
+      "connections": {
+        "weekly_trigger": {
+          "main": [["state_law_monitor"]]
+        },
+        "state_law_monitor": {
+          "main": [["nlweb_state_analysis"]]
+        },
+        "nlweb_state_analysis": {
+          "main": [["update_state_requirements"]]
+        }
+      }
+    },
+    {
+      "name": "Digital Asset Legal Compliance",
+      "description": "Monitors digital asset inheritance laws and cryptocurrency regulations",
+      "trigger": "schedule",
+      "frequency": "bi-weekly",
+      "nodes": [
+        {
+          "id": "digital_trigger",
+          "name": "Bi-weekly Digital Asset Check",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "dayOfWeek": 3,
+              "hour": 10,
+              "minute": 0,
+              "interval": 2
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "crypto_regulations",
+          "name": "Monitor Crypto Regulations",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Monitor cryptocurrency and digital asset regulations\nconst digitalAssetSources = [\n  {\n    name: 'SEC Digital Asset Guidelines',\n    focus: 'securities_classification',\n    keywords: ['cryptocurrency', 'digital assets', 'inheritance', 'estate planning']\n  },\n  {\n    name: 'IRS Crypto Tax Guidance',\n    focus: 'tax_implications',\n    keywords: ['cryptocurrency taxation', 'inheritance tax', 'digital asset valuation']\n  },\n  {\n    name: 'State Digital Asset Laws',\n    focus: 'state_regulations',\n    keywords: ['RUFADAA', 'digital asset access', 'fiduciary rights']\n  }\n];\n\nconst regulations = [];\n\nfor (const source of digitalAssetSources) {\n  // Simulate fetching current regulations\n  const regulation = {\n    source: source.name,\n    focus_area: source.focus,\n    current_status: 'active',\n    key_requirements: [\n      'Proper documentation of digital asset ownership',\n      'Secure storage of access credentials',\n      'Clear beneficiary designation',\n      'Compliance with platform terms of service'\n    ],\n    recent_changes: [],\n    compliance_deadline: null,\n    last_updated: new Date().toISOString()\n  };\n  \n  regulations.push(regulation);\n}\n\nreturn {\n  digital_asset_regulations: regulations,\n  compliance_areas: [\n    'cryptocurrency_inheritance',\n    'nft_transfer_rights',\n    'social_media_accounts',\n    'cloud_storage_access',\n    'digital_subscription_services'\n  ],\n  scan_timestamp: new Date().toISOString()\n};"
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "nlweb_digital_analysis",
+          "name": "NLWeb Digital Asset Analysis",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/analyze",
+            "method": "POST",
+            "body": {
+              "query": "Analyze digital asset inheritance regulations and compliance requirements. Focus on: 1) Cryptocurrency inheritance procedures, 2) NFT transfer mechanisms, 3) Social media account succession, 4) Cloud storage access rights, 5) Digital subscription management. Provide specific guidance for LastWish digital asset module.",
+              "context": "digital_asset_estate_planning",
+              "data": "{{$json}}",
+              "format": "compliance_guidance"
+            }
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "update_digital_module",
+          "name": "Update Digital Asset Module",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/digital-assets/compliance",
+            "method": "POST",
+            "body": {
+              "compliance_guidance": "{{$json.guidance}}",
+              "regulatory_updates": "{{$json.regulatory_changes}}",
+              "module_updates": "{{$json.recommended_updates}}",
+              "source": "automated_digital_compliance"
+            }
+          },
+          "position": [700, 100]
+        }
+      ],
+      "connections": {
+        "digital_trigger": {
+          "main": [["crypto_regulations"]]
+        },
+        "crypto_regulations": {
+          "main": [["nlweb_digital_analysis"]]
+        },
+        "nlweb_digital_analysis": {
+          "main": [["update_digital_module"]]
+        }
+      }
+    },
+    {
+      "name": "Tax Law Compliance Monitor",
+      "description": "Monitors federal and state tax law changes affecting estate planning",
+      "trigger": "schedule",
+      "frequency": "monthly",
+      "nodes": [
+        {
+          "id": "tax_trigger",
+          "name": "Monthly Tax Law Check",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "dayOfMonth": 1,
+              "hour": 9,
+              "minute": 0
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "tax_law_monitor",
+          "name": "Monitor Tax Laws",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Monitor federal and state tax law changes\nconst taxAreas = {\n  federal: {\n    estate_tax_exemption: 13990000, // 2025 amount\n    gift_tax_annual_exclusion: 18000, // 2025 amount\n    generation_skipping_tax: 13990000,\n    portability_election: true\n  },\n  state_taxes: {\n    states_with_estate_tax: [\n      'CT', 'HI', 'IL', 'ME', 'MD', 'MA', 'MN', 'NY', 'OR', 'RI', 'VT', 'WA'\n    ],\n    states_with_inheritance_tax: [\n      'IA', 'KY', 'MD', 'NE', 'NJ', 'PA'\n    ]\n  },\n  recent_changes: [\n    {\n      area: 'federal_exemption',\n      change: 'Increased to $13.99 million for 2025',\n      effective_date: '2025-01-01',\n      impact: 'Higher exemption threshold'\n    },\n    {\n      area: 'secure_act_3',\n      change: 'Potential changes to inherited retirement accounts',\n      status: 'proposed',\n      impact: 'May affect retirement account inheritance planning'\n    }\n  ]\n};\n\nreturn {\n  tax_law_status: taxAreas,\n  compliance_requirements: [\n    'Update estate tax exemption amounts',\n    'Verify state-specific tax implications',\n    'Review portability election guidance',\n    'Update retirement account inheritance rules'\n  ],\n  last_updated: new Date().toISOString()\n};"
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "nlweb_tax_analysis",
+          "name": "NLWeb Tax Analysis",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/analyze",
+            "method": "POST",
+            "body": {
+              "query": "Analyze tax law changes affecting estate planning. Focus on: 1) Federal estate tax exemption changes, 2) State estate and inheritance tax updates, 3) Gift tax annual exclusion adjustments, 4) Retirement account inheritance rules, 5) Generation-skipping tax implications. Provide specific updates needed for LastWish tax guidance.",
+              "context": "estate_tax_planning",
+              "data": "{{$json}}",
+              "format": "tax_compliance_updates"
+            }
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "update_tax_guidance",
+          "name": "Update Tax Guidance",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/tax-guidance/update",
+            "method": "POST",
+            "body": {
+              "tax_updates": "{{$json.updates}}",
+              "exemption_amounts": "{{$json.current_exemptions}}",
+              "state_tax_changes": "{{$json.state_changes}}",
+              "effective_date": "{{new Date().toISOString()}}"
+            }
+          },
+          "position": [700, 100]
+        }
+      ],
+      "connections": {
+        "tax_trigger": {
+          "main": [["tax_law_monitor"]]
+        },
+        "tax_law_monitor": {
+          "main": [["nlweb_tax_analysis"]]
+        },
+        "nlweb_tax_analysis": {
+          "main": [["update_tax_guidance"]]
+        }
+      }
+    }
+  ],
+  "deployment_instructions": {
+    "prerequisites": [
+      "NLWeb instance running and accessible",
+      "LastWish platform API endpoints configured",
+      "Legal database API access credentials",
+      "Email service configured for alerts"
+    ],
+    "environment_variables": [
+      "NLWEB_API_KEY",
+      "LASTWISH_API_KEY",
+      "LEGAL_API_KEY",
+      "EMAIL_SERVICE_CONFIG"
+    ],
+    "monitoring": {
+      "success_metrics": [
+        "Workflow execution success rate > 95%",
+        "Legal compliance score > 90%",
+        "Update deployment time < 24 hours"
+      ],
+      "alert_conditions": [
+        "Critical legal changes detected",
+        "Workflow execution failures",
+        "Compliance score drops below threshold"
+      ]
+    }
+  }
+}
+

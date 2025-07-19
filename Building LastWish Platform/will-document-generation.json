@@ -1,0 +1,178 @@
+{
+  "name": "LastWish - Will Document Generation",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "will-created",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "webhook-trigger",
+      "name": "Will Created Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 1,
+      "position": [240, 300],
+      "webhookId": "will-created-webhook"
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/n8n/api/generate-document",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.user.id }}"
+            },
+            {
+              "name": "document_type",
+              "value": "will"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-document-data",
+      "name": "Get Document Data",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Generate will document content\nconst userData = $input.first().json.data.user;\nconst willData = $input.first().json.data.wills[0] || {};\nconst assets = $input.first().json.data.assets || [];\nconst beneficiaries = $input.first().json.data.beneficiaries || [];\n\n// Calculate total estate value\nconst totalValue = assets.reduce((sum, asset) => sum + asset.value, 0);\n\n// Generate will document\nconst willDocument = `\nLAST WILL AND TESTAMENT\n\nI, ${userData.name}, of ${userData.address}, ${userData.city}, ${userData.state} ${userData.zip_code}, being of sound mind and disposing memory, do hereby make, publish, and declare this to be my Last Will and Testament.\n\nARTICLE I - REVOCATION\nI hereby revoke all former wills and codicils made by me.\n\nARTICLE II - EXECUTOR\nI nominate and appoint [EXECUTOR NAME] as the Executor of this Will.\n\nARTICLE III - ASSETS AND DISTRIBUTION\nI give, devise, and bequeath my estate as follows:\n\n${assets.map(asset => `- ${asset.name} (${asset.type}): Estimated value $${asset.value.toLocaleString()}`).join('\\n')}\n\nTotal Estate Value: $${totalValue.toLocaleString()}\n\nARTICLE IV - BENEFICIARIES\nI hereby designate the following beneficiaries:\n\n${beneficiaries.map(b => `- ${b.name} (${b.relationship}): ${b.email}`).join('\\n')}\n\nARTICLE V - FINAL PROVISIONS\nThis Will shall be governed by the laws of ${userData.state || '[STATE]'}.\n\nIN WITNESS WHEREOF, I have hereunto set my hand this _____ day of _________, 2025.\n\n_________________________\n${userData.name}\nTestator\n\nWITNESSES:\n\n_________________________    _________________________\nWitness 1                     Witness 2\n\n_________________________    _________________________\nSignature                     Signature\n\n_________________________    _________________________\nDate                          Date\n`;\n\nreturn {\n  document: willDocument,\n  user: userData,\n  metadata: {\n    generated_at: new Date().toISOString(),\n    total_assets: assets.length,\n    total_beneficiaries: beneficiaries.length,\n    estate_value: totalValue,\n    document_type: 'will'\n  }\n};"
+      },
+      "id": "generate-document",
+      "name": "Generate Will Document",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/n8n/api/send-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "will_generated"
+            },
+            {
+              "name": "recipient_email",
+              "value": "={{ $json.user.email }}"
+            },
+            {
+              "name": "subject",
+              "value": "Your Will Document Has Been Generated"
+            },
+            {
+              "name": "message",
+              "value": "Dear {{ $json.user.name }},\\n\\nYour will document has been successfully generated and is ready for review. Please log into your LastWish account to review and finalize your will.\\n\\nDocument Details:\\n- Generated: {{ $json.metadata.generated_at }}\\n- Total Assets: {{ $json.metadata.total_assets }}\\n- Total Beneficiaries: {{ $json.metadata.total_beneficiaries }}\\n- Estate Value: ${{ $json.metadata.estate_value }}\\n\\nBest regards,\\nThe LastWish Team"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-notification",
+      "name": "Send User Notification",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ { \"status\": \"success\", \"message\": \"Will document generated and notification sent\", \"document_id\": $json.metadata.document_type + \"_\" + new Date().getTime() } }}"
+      },
+      "id": "webhook-response",
+      "name": "Webhook Response",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1,
+      "position": [1120, 300]
+    }
+  ],
+  "connections": {
+    "Will Created Webhook": {
+      "main": [
+        [
+          {
+            "node": "Get Document Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get Document Data": {
+      "main": [
+        [
+          {
+            "node": "Generate Will Document",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Will Document": {
+      "main": [
+        [
+          {
+            "node": "Send User Notification",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send User Notification": {
+      "main": [
+        [
+          {
+            "node": "Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "will-document-generation",
+  "tags": [
+    {
+      "createdAt": "2025-01-17T20:00:00.000Z",
+      "updatedAt": "2025-01-17T20:00:00.000Z",
+      "id": "estate-planning",
+      "name": "Estate Planning"
+    }
+  ]
+}
+
