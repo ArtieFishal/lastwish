@@ -26,6 +26,7 @@ import {
 import { useAuth } from '@/contexts/AuthContext'
 import { useWallet } from '@/contexts/WalletContext'
 import { useWeb3 } from '@/contexts/Web3Context'
+import { usePayment } from '@/contexts/PaymentContext'
 import { toast } from 'sonner'
 import jsPDF from 'jspdf'
 import html2canvas from 'html2canvas'
@@ -34,6 +35,8 @@ export function AddendumPage() {
   const { user } = useAuth()
   const { sessions } = useWallet()
   const { connectedWallets } = useWeb3()
+  const { hasPaid } = usePayment()
+  console.log('hasPaid:', hasPaid);
   
   const [currentStep, setCurrentStep] = useState(1)
   const [addendumData, setAddendumData] = useState({
@@ -422,9 +425,14 @@ export function AddendumPage() {
             <Eye className="mr-2 h-4 w-4" />
             {previewMode ? 'Edit' : 'Preview'}
           </Button>
+          {!hasPaid && (
+            <div className="text-right text-yellow-400 text-sm">
+              Please make a payment to enable PDF generation.
+            </div>
+          )}
           <Button 
             onClick={generatePDF}
-            disabled={isGenerating || currentStep < 5}
+            disabled={isGenerating || currentStep < 5 || !hasPaid}
             className="bg-blue-600 hover:bg-blue-700"
           >
             <Download className="mr-2 h-4 w-4" />

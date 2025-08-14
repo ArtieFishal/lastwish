@@ -22,21 +22,18 @@ import {
   RefreshCw
 } from 'lucide-react'
 import { useAuth } from '@/contexts/AuthContext'
+import { usePayment } from '@/contexts/PaymentContext'
 import { toast } from 'sonner'
 
 export function PaymentPage() {
   const { user } = useAuth()
-  
-  const [selectedPlan, setSelectedPlan] = useState(null)
+  const { paymentStatus, selectedPlan: contextSelectedPlan, processPayment } = usePayment()
+  const [localSelectedPlan, setLocalSelectedPlan] = useState(null)
   const [paymentMethod, setPaymentMethod] = useState('crypto')
-  const [paymentStep, setPaymentStep] = useState('select') // select, payment, processing, complete
+  const [paymentStep, setPaymentStep] = useState('select') // select, payment
   const [paymentData, setPaymentData] = useState({
-    amount: 0,
-    currency: 'USD',
     cryptoCurrency: 'BTC',
     address: '',
-    txHash: '',
-    status: 'pending'
   })
   const [cryptoRates, setCryptoRates] = useState({
     BTC: 45000,
@@ -121,12 +118,7 @@ export function PaymentPage() {
 
   // Handle plan selection
   const selectPlan = (plan) => {
-    setSelectedPlan(plan)
-    setPaymentData(prev => ({
-      ...prev,
-      amount: plan.price,
-      currency: 'USD'
-    }))
+    setLocalSelectedPlan(plan)
     setPaymentStep('payment')
   }
 
@@ -181,7 +173,7 @@ export function PaymentPage() {
       </div>
 
       {/* Step 1: Plan Selection */}
-      {paymentStep === 'select' && (
+      {paymentStatus === 'pending' && paymentStep === 'select' && (
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           {plans.map((plan) => (
             <Card 
@@ -236,7 +228,7 @@ export function PaymentPage() {
       )}
 
       {/* Step 2: Payment Method Selection */}
-      {paymentStep === 'payment' && selectedPlan && (
+      {paymentStatus === 'pending' && paymentStep === 'payment' && localSelectedPlan && (
         <div className="max-w-4xl mx-auto space-y-6">
           {/* Order Summary */}
           <Card className="bg-gray-900 border-gray-800">
@@ -246,11 +238,11 @@ export function PaymentPage() {
             <CardContent>
               <div className="flex justify-between items-center">
                 <div>
-                  <h3 className="text-white font-medium">{selectedPlan.name}</h3>
-                  <p className="text-gray-400 text-sm">{selectedPlan.description}</p>
+                  <h3 className="text-white font-medium">{localSelectedPlan.name}</h3>
+                  <p className="text-gray-400 text-sm">{localSelectedPlan.description}</p>
                 </div>
                 <div className="text-right">
-                  <p className="text-2xl font-bold text-white">${selectedPlan.price}</p>
+                  <p className="text-2xl font-bold text-white">${localSelectedPlan.price}</p>
                   <p className="text-gray-400 text-sm">One-time payment</p>
                 </div>
               </div>
@@ -335,13 +327,13 @@ export function PaymentPage() {
                 <div className="bg-gray-800 rounded-lg p-6 space-y-4">
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Amount (USD)</span>
-                    <span className="text-white font-medium">${paymentData.amount}</span>
+                    <span className="text-white font-medium">${localSelectedPlan.price}</span>
                   </div>
                   
                   <div className="flex justify-between items-center">
                     <span className="text-gray-400">Amount ({paymentData.cryptoCurrency})</span>
                     <span className="text-white font-medium">
-                      {calculateCryptoAmount(paymentData.amount, paymentData.cryptoCurrency)} {paymentData.cryptoCurrency}
+                      {calculateCryptoAmount(localSelectedPlan.price, paymentData.cryptoCurrency)} {paymentData.cryptoCurrency}
                     </span>
                   </div>
                   
@@ -372,7 +364,7 @@ export function PaymentPage() {
                       <span className="text-yellow-400 font-medium">Important Instructions</span>
                     </div>
                     <ul className="text-yellow-300 text-sm space-y-1">
-                      <li>• Send exactly {calculateCryptoAmount(paymentData.amount, paymentData.cryptoCurrency)} {paymentData.cryptoCurrency} to the address above</li>
+                      <li>• Send exactly {calculateCryptoAmount(localSelectedPlan.price, paymentData.cryptoCurrency)} {paymentData.cryptoCurrency} to the address above</li>
                       <li>• Payment will be confirmed within 1-3 network confirmations</li>
                       <li>• Do not send any other cryptocurrency to this address</li>
                       <li>• Keep your transaction hash for reference</li>
@@ -391,7 +383,7 @@ export function PaymentPage() {
                   </Button>
                   
                   <Button
-                    onClick={processPayment}
+                    onClick={() => processPayment(localSelectedPlan)}
                     className="bg-green-600 hover:bg-green-700 flex-1"
                   >
                     <Wallet className="mr-2 h-4 w-4" />
@@ -405,7 +397,7 @@ export function PaymentPage() {
       )}
 
       {/* Step 3: Processing */}
-      {paymentStep === 'processing' && (
+      {paymentStatus === 'processing' && (
         <div className="max-w-2xl mx-auto">
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-8 text-center">
@@ -426,7 +418,7 @@ export function PaymentPage() {
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Amount</span>
                   <span className="text-white">
-                    {calculateCryptoAmount(paymentData.amount, paymentData.cryptoCurrency)} {paymentData.cryptoCurrency}
+                    {calculateCryptoAmount(contextSelectedPlan.price, paymentData.cryptoCurrency)} {paymentData.cryptoCurrency}
                   </span>
                 </div>
               </div>
@@ -445,7 +437,7 @@ export function PaymentPage() {
       )}
 
       {/* Step 4: Payment Complete */}
-      {paymentStep === 'complete' && (
+      {paymentStatus === 'completed' && (
         <div className="max-w-2xl mx-auto">
           <Card className="bg-gray-900 border-gray-800">
             <CardContent className="p-8 text-center">
@@ -455,18 +447,18 @@ export function PaymentPage() {
               
               <h3 className="text-2xl font-semibold text-white mb-2">Payment Successful!</h3>
               <p className="text-gray-400 mb-6">
-                Your payment has been confirmed and your {selectedPlan?.name} is now active.
+                Your payment has been confirmed and your {contextSelectedPlan?.name} is now active.
               </p>
               
               <div className="bg-gray-800 rounded-lg p-6 mb-6 space-y-3">
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Plan</span>
-                  <span className="text-white font-medium">{selectedPlan?.name}</span>
+                  <span className="text-white font-medium">{contextSelectedPlan?.name}</span>
                 </div>
                 <div className="flex justify-between items-center">
                   <span className="text-gray-400">Amount Paid</span>
                   <span className="text-white font-medium">
-                    {calculateCryptoAmount(paymentData.amount, paymentData.cryptoCurrency)} {paymentData.cryptoCurrency}
+                    {calculateCryptoAmount(contextSelectedPlan.price, paymentData.cryptoCurrency)} {paymentData.cryptoCurrency}
                   </span>
                 </div>
                 <div className="flex justify-between items-center">
