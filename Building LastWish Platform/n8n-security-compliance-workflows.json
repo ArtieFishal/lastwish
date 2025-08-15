@@ -1,0 +1,410 @@
+{
+  "workflows": [
+    {
+      "name": "Cybersecurity Threat Monitoring",
+      "description": "Continuously monitors for cybersecurity threats, vulnerabilities, and suspicious activities on the LastWish platform",
+      "trigger": "schedule",
+      "frequency": "every_4_hours",
+      "nodes": [
+        {
+          "id": "security_scan_trigger",
+          "name": "Security Scan Trigger",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "hour": "*/4",
+              "minute": 0
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "system_health_check",
+          "name": "System Health Check",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/security/health",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}",
+              "X-Security-Check": "automated"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "analyze_security_metrics",
+          "name": "Analyze Security Metrics",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Analyze security metrics and identify potential threats\nconst healthData = $json;\nconst securityAnalysis = {\n  threats_detected: [],\n  vulnerabilities: [],\n  anomalies: [],\n  compliance_issues: [],\n  risk_score: 0\n};\n\n// Analyze login patterns\nif (healthData.login_attempts) {\n  const failedLogins = healthData.login_attempts.failed || 0;\n  const successfulLogins = healthData.login_attempts.successful || 0;\n  const failureRate = failedLogins / (failedLogins + successfulLogins);\n  \n  if (failureRate > 0.3) {\n    securityAnalysis.threats_detected.push({\n      type: 'brute_force_attempt',\n      severity: 'high',\n      description: `High login failure rate: ${(failureRate * 100).toFixed(1)}%`,\n      failed_attempts: failedLogins,\n      time_window: '4_hours'\n    });\n    securityAnalysis.risk_score += 30;\n  }\n}\n\n// Check for unusual access patterns\nif (healthData.access_patterns) {\n  const unusualIPs = healthData.access_patterns.unusual_ips || [];\n  const offHoursAccess = healthData.access_patterns.off_hours_access || 0;\n  \n  if (unusualIPs.length > 5) {\n    securityAnalysis.anomalies.push({\n      type: 'unusual_ip_access',\n      severity: 'medium',\n      description: `${unusualIPs.length} unusual IP addresses detected`,\n      ip_addresses: unusualIPs.slice(0, 10) // Limit for security\n    });\n    securityAnalysis.risk_score += 15;\n  }\n  \n  if (offHoursAccess > 20) {\n    securityAnalysis.anomalies.push({\n      type: 'off_hours_activity',\n      severity: 'medium',\n      description: `${offHoursAccess} off-hours access attempts`,\n      recommendation: 'Review access logs for suspicious activity'\n    });\n    securityAnalysis.risk_score += 10;\n  }\n}\n\n// Check SSL/TLS status\nif (healthData.ssl_status) {\n  if (!healthData.ssl_status.valid || healthData.ssl_status.expires_soon) {\n    securityAnalysis.vulnerabilities.push({\n      type: 'ssl_certificate_issue',\n      severity: 'high',\n      description: 'SSL certificate issue detected',\n      details: healthData.ssl_status,\n      action_required: 'Renew SSL certificate immediately'\n    });\n    securityAnalysis.risk_score += 25;\n  }\n}\n\n// Check for data encryption status\nif (healthData.encryption_status) {\n  if (!healthData.encryption_status.data_at_rest || !healthData.encryption_status.data_in_transit) {\n    securityAnalysis.vulnerabilities.push({\n      type: 'encryption_weakness',\n      severity: 'critical',\n      description: 'Data encryption not properly configured',\n      details: healthData.encryption_status,\n      action_required: 'Enable full encryption immediately'\n    });\n    securityAnalysis.risk_score += 40;\n  }\n}\n\n// Check backup integrity\nif (healthData.backup_status) {\n  const lastBackup = new Date(healthData.backup_status.last_backup);\n  const hoursSinceBackup = (new Date() - lastBackup) / (1000 * 60 * 60);\n  \n  if (hoursSinceBackup > 24) {\n    securityAnalysis.vulnerabilities.push({\n      type: 'backup_failure',\n      severity: 'high',\n      description: `No backup completed in ${Math.floor(hoursSinceBackup)} hours`,\n      last_backup: healthData.backup_status.last_backup,\n      action_required: 'Investigate backup system immediately'\n    });\n    securityAnalysis.risk_score += 20;\n  }\n}\n\n// Determine overall risk level\nlet riskLevel = 'low';\nif (securityAnalysis.risk_score >= 50) {\n  riskLevel = 'critical';\n} else if (securityAnalysis.risk_score >= 30) {\n  riskLevel = 'high';\n} else if (securityAnalysis.risk_score >= 15) {\n  riskLevel = 'medium';\n}\n\nreturn {\n  security_analysis: securityAnalysis,\n  risk_level: riskLevel,\n  scan_timestamp: new Date().toISOString(),\n  requires_immediate_action: riskLevel === 'critical' || riskLevel === 'high'\n};"
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "nlweb_threat_assessment",
+          "name": "NLWeb Threat Assessment",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/security-analysis",
+            "method": "POST",
+            "headers": {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer {{$env.NLWEB_API_KEY}}"
+            },
+            "body": {
+              "query": "Analyze these cybersecurity threats and provide: 1) Threat prioritization, 2) Recommended immediate actions, 3) Long-term security improvements, 4) Compliance impact assessment, 5) Risk mitigation strategies.",
+              "security_data": "{{$json.security_analysis}}",
+              "risk_level": "{{$json.risk_level}}",
+              "context": "estate_planning_platform_security",
+              "format": "security_recommendations"
+            }
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "automated_threat_response",
+          "name": "Automated Threat Response",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Implement automated threat response based on analysis\nconst analysis = $node['analyze_security_metrics'].json;\nconst recommendations = $json.recommendations || {};\nconst responses = [];\n\n// Auto-block suspicious IPs if brute force detected\nif (analysis.security_analysis.threats_detected.some(t => t.type === 'brute_force_attempt')) {\n  responses.push({\n    action: 'block_suspicious_ips',\n    type: 'automated_response',\n    description: 'Temporarily blocking IPs with excessive failed login attempts',\n    duration: '24_hours',\n    severity: 'high'\n  });\n}\n\n// Enable additional monitoring for unusual activity\nif (analysis.security_analysis.anomalies.length > 0) {\n  responses.push({\n    action: 'increase_monitoring',\n    type: 'automated_response',\n    description: 'Increasing security monitoring frequency',\n    duration: '48_hours',\n    severity: 'medium'\n  });\n}\n\n// Force password resets for compromised accounts\nif (analysis.security_analysis.threats_detected.some(t => t.severity === 'critical')) {\n  responses.push({\n    action: 'force_password_reset',\n    type: 'security_measure',\n    description: 'Forcing password reset for potentially compromised accounts',\n    scope: 'affected_users',\n    severity: 'critical'\n  });\n}\n\n// Generate security alerts\nconst alerts = [];\nif (analysis.requires_immediate_action) {\n  alerts.push({\n    type: 'immediate_action_required',\n    message: `Critical security issue detected - Risk Level: ${analysis.risk_level}`,\n    threats: analysis.security_analysis.threats_detected.length,\n    vulnerabilities: analysis.security_analysis.vulnerabilities.length,\n    recommended_actions: recommendations.immediate_actions || []\n  });\n}\n\nreturn {\n  automated_responses: responses,\n  security_alerts: alerts,\n  response_timestamp: new Date().toISOString(),\n  escalation_required: analysis.risk_level === 'critical'\n};"
+          },
+          "position": [900, 100]
+        },
+        {
+          "id": "execute_security_responses",
+          "name": "Execute Security Responses",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/security/auto-response",
+            "method": "POST",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "responses": "{{$json.automated_responses}}",
+              "alerts": "{{$json.security_alerts}}",
+              "source": "automated_security_monitoring"
+            }
+          },
+          "position": [1100, 100]
+        },
+        {
+          "id": "send_security_alerts",
+          "name": "Send Security Alerts",
+          "type": "n8n-nodes-base.emailSend",
+          "parameters": {
+            "fromEmail": "security@lastwish.com",
+            "toEmail": "security-team@lastwish.com",
+            "subject": "Security Alert - {{$node['analyze_security_metrics'].json.risk_level}} Risk Level Detected",
+            "message": "Security monitoring has detected potential threats requiring attention:\\n\\nRisk Level: {{$node['analyze_security_metrics'].json.risk_level}}\\nThreats Detected: {{$node['analyze_security_metrics'].json.security_analysis.threats_detected.length}}\\nVulnerabilities: {{$node['analyze_security_metrics'].json.security_analysis.vulnerabilities.length}}\\n\\nAutomated responses initiated:\\n{{$json.automated_responses}}\\n\\nImmediate action required: {{$json.escalation_required}}\\n\\nFull security report attached."
+          },
+          "position": [1100, 300]
+        }
+      ],
+      "connections": {
+        "security_scan_trigger": {
+          "main": [["system_health_check"]]
+        },
+        "system_health_check": {
+          "main": [["analyze_security_metrics"]]
+        },
+        "analyze_security_metrics": {
+          "main": [["nlweb_threat_assessment"]]
+        },
+        "nlweb_threat_assessment": {
+          "main": [["automated_threat_response"]]
+        },
+        "automated_threat_response": {
+          "main": [["execute_security_responses", "send_security_alerts"]]
+        }
+      }
+    },
+    {
+      "name": "GDPR Compliance Monitor",
+      "description": "Monitors and ensures GDPR compliance for user data protection and privacy rights",
+      "trigger": "schedule",
+      "frequency": "daily",
+      "nodes": [
+        {
+          "id": "gdpr_compliance_check",
+          "name": "GDPR Compliance Check",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "hour": 3,
+              "minute": 0,
+              "timezone": "Europe/London"
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "fetch_data_processing_activities",
+          "name": "Fetch Data Processing Activities",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/gdpr/data-processing",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "analyze_gdpr_compliance",
+          "name": "Analyze GDPR Compliance",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Analyze GDPR compliance status\nconst dataActivities = $json.data_processing_activities || [];\nconst complianceAnalysis = {\n  consent_management: {\n    status: 'compliant',\n    issues: []\n  },\n  data_retention: {\n    status: 'compliant',\n    issues: []\n  },\n  user_rights: {\n    status: 'compliant',\n    issues: []\n  },\n  data_protection: {\n    status: 'compliant',\n    issues: []\n  },\n  breach_notification: {\n    status: 'compliant',\n    issues: []\n  }\n};\n\nlet overallCompliance = 'compliant';\nconst criticalIssues = [];\n\n// Check consent management\nfor (const activity of dataActivities) {\n  if (activity.type === 'user_registration' || activity.type === 'marketing') {\n    if (!activity.consent_obtained || !activity.consent_timestamp) {\n      complianceAnalysis.consent_management.status = 'non_compliant';\n      complianceAnalysis.consent_management.issues.push({\n        activity_id: activity.id,\n        issue: 'Missing or invalid consent',\n        severity: 'high',\n        user_count: activity.affected_users || 0\n      });\n      overallCompliance = 'non_compliant';\n    }\n  }\n  \n  // Check data retention periods\n  if (activity.retention_period) {\n    const retentionDate = new Date(activity.created_date);\n    retentionDate.setMonth(retentionDate.getMonth() + activity.retention_period);\n    \n    if (new Date() > retentionDate && activity.status === 'active') {\n      complianceAnalysis.data_retention.status = 'non_compliant';\n      complianceAnalysis.data_retention.issues.push({\n        activity_id: activity.id,\n        issue: 'Data retained beyond specified period',\n        severity: 'medium',\n        retention_exceeded_by: Math.floor((new Date() - retentionDate) / (1000 * 60 * 60 * 24))\n      });\n      if (overallCompliance === 'compliant') overallCompliance = 'partial';\n    }\n  }\n  \n  // Check data protection measures\n  if (!activity.encryption_enabled || !activity.access_controls) {\n    complianceAnalysis.data_protection.status = 'non_compliant';\n    complianceAnalysis.data_protection.issues.push({\n      activity_id: activity.id,\n      issue: 'Insufficient data protection measures',\n      severity: 'high',\n      missing_protections: [\n        !activity.encryption_enabled ? 'encryption' : null,\n        !activity.access_controls ? 'access_controls' : null\n      ].filter(Boolean)\n    });\n    overallCompliance = 'non_compliant';\n  }\n}\n\n// Check user rights fulfillment\nconst userRequests = $json.user_rights_requests || [];\nfor (const request of userRequests) {\n  const requestDate = new Date(request.submitted_date);\n  const daysSinceRequest = (new Date() - requestDate) / (1000 * 60 * 60 * 24);\n  \n  if (daysSinceRequest > 30 && request.status !== 'completed') {\n    complianceAnalysis.user_rights.status = 'non_compliant';\n    complianceAnalysis.user_rights.issues.push({\n      request_id: request.id,\n      issue: 'User rights request not fulfilled within 30 days',\n      severity: 'high',\n      days_overdue: Math.floor(daysSinceRequest - 30),\n      request_type: request.type\n    });\n    overallCompliance = 'non_compliant';\n  }\n}\n\n// Check breach notification procedures\nconst breaches = $json.security_breaches || [];\nfor (const breach of breaches) {\n  const breachDate = new Date(breach.detected_date);\n  const hoursToNotification = breach.notification_sent ? \n    (new Date(breach.notification_sent) - breachDate) / (1000 * 60 * 60) : null;\n  \n  if (!breach.notification_sent || hoursToNotification > 72) {\n    complianceAnalysis.breach_notification.status = 'non_compliant';\n    complianceAnalysis.breach_notification.issues.push({\n      breach_id: breach.id,\n      issue: 'Breach not reported within 72 hours',\n      severity: 'critical',\n      hours_delayed: hoursToNotification || 'not_sent'\n    });\n    overallCompliance = 'non_compliant';\n    criticalIssues.push(breach);\n  }\n}\n\nreturn {\n  compliance_analysis: complianceAnalysis,\n  overall_status: overallCompliance,\n  critical_issues: criticalIssues,\n  compliance_score: overallCompliance === 'compliant' ? 100 : \n                   overallCompliance === 'partial' ? 75 : 50,\n  assessment_date: new Date().toISOString()\n};"
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "nlweb_compliance_guidance",
+          "name": "NLWeb Compliance Guidance",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/compliance-guidance",
+            "method": "POST",
+            "body": {
+              "query": "Analyze GDPR compliance issues and provide: 1) Immediate remediation steps, 2) Long-term compliance improvements, 3) Risk assessment, 4) Regulatory reporting requirements, 5) Best practice recommendations.",
+              "compliance_data": "{{$json.compliance_analysis}}",
+              "overall_status": "{{$json.overall_status}}",
+              "context": "gdpr_estate_planning_platform",
+              "format": "compliance_action_plan"
+            }
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "implement_compliance_fixes",
+          "name": "Implement Compliance Fixes",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/gdpr/auto-remediation",
+            "method": "POST",
+            "body": {
+              "compliance_issues": "{{$node['analyze_gdpr_compliance'].json.compliance_analysis}}",
+              "action_plan": "{{$json.action_plan}}",
+              "auto_fix_enabled": true\n            }\n          },\n          \"position\": [900, 100]\n        },\n        {\n          \"id\": \"generate_compliance_report\",\n          \"name\": \"Generate Compliance Report\",\n          \"type\": \"n8n-nodes-base.code\",\n          \"parameters\": {\n            \"jsCode\": \"// Generate comprehensive GDPR compliance report\\nconst analysis = $node['analyze_gdpr_compliance'].json;\\nconst guidance = $node['nlweb_compliance_guidance'].json;\\nconst fixes = $json;\\n\\nconst report = {\\n  executive_summary: {\\n    overall_status: analysis.overall_status,\\n    compliance_score: analysis.compliance_score,\\n    critical_issues: analysis.critical_issues.length,\\n    total_issues: Object.values(analysis.compliance_analysis).reduce((sum, area) => sum + area.issues.length, 0),\\n    assessment_date: analysis.assessment_date\\n  },\\n  detailed_findings: {\\n    consent_management: analysis.compliance_analysis.consent_management,\\n    data_retention: analysis.compliance_analysis.data_retention,\\n    user_rights: analysis.compliance_analysis.user_rights,\\n    data_protection: analysis.compliance_analysis.data_protection,\\n    breach_notification: analysis.compliance_analysis.breach_notification\\n  },\\n  remediation_actions: {\\n    immediate_actions: guidance.immediate_actions || [],\\n    long_term_improvements: guidance.long_term_improvements || [],\\n    auto_fixes_applied: fixes.auto_fixes_applied || []\\n  },\\n  recommendations: guidance.recommendations || [],\\n  next_assessment: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString()\\n};\\n\\nreturn {\\n  compliance_report: report,\\n  requires_legal_review: analysis.overall_status === 'non_compliant',\\n  requires_immediate_action: analysis.critical_issues.length > 0\\n};\"\n          },\n          \"position\": [1100, 100]\n        },\n        {\n          \"id\": \"send_compliance_alert\",\n          \"name\": \"Send Compliance Alert\",\n          \"type\": \"n8n-nodes-base.emailSend\",\n          \"parameters\": {\n            \"fromEmail\": \"compliance@lastwish.com\",\n            \"toEmail\": \"legal-team@lastwish.com,compliance-officer@lastwish.com\",\n            \"subject\": \"GDPR Compliance Report - Status: {{$node['analyze_gdpr_compliance'].json.overall_status}}\",\n            \"message\": \"Daily GDPR Compliance Assessment\\n\\nOverall Status: {{$node['analyze_gdpr_compliance'].json.overall_status}}\\nCompliance Score: {{$node['analyze_gdpr_compliance'].json.compliance_score}}%\\nCritical Issues: {{$node['analyze_gdpr_compliance'].json.critical_issues.length}}\\n\\nImmediate Action Required: {{$json.requires_immediate_action}}\\nLegal Review Required: {{$json.requires_legal_review}}\\n\\nFull compliance report attached.\\n\\nThis is an automated compliance monitoring report.\"\n          },\n          \"position\": [1100, 300]\n        }\n      ],\n      \"connections\": {\n        \"gdpr_compliance_check\": {\n          \"main\": [[\"fetch_data_processing_activities\"]]\n        },\n        \"fetch_data_processing_activities\": {\n          \"main\": [[\"analyze_gdpr_compliance\"]]\n        },\n        \"analyze_gdpr_compliance\": {\n          \"main\": [[\"nlweb_compliance_guidance\"]]\n        },\n        \"nlweb_compliance_guidance\": {\n          \"main\": [[\"implement_compliance_fixes\"]]\n        },\n        \"implement_compliance_fixes\": {\n          \"main\": [[\"generate_compliance_report\"]]\n        },\n        \"generate_compliance_report\": {\n          \"main\": [[\"send_compliance_alert\"]]\n        }\n      }\n    },\n    {\n      \"name\": \"Data Backup and Recovery Monitor\",\n      \"description\": \"Monitors data backup integrity and tests recovery procedures\",\n      \"trigger\": \"schedule\",\n      \"frequency\": \"daily\",\n      \"nodes\": [\n        {\n          \"id\": \"backup_monitor_trigger\",\n          \"name\": \"Backup Monitor Trigger\",\n          \"type\": \"n8n-nodes-base.cron\",\n          \"parameters\": {\n            \"rule\": {\n              \"hour\": 2,\n              \"minute\": 30\n            }\n          },\n          \"position\": [100, 100]\n        },\n        {\n          \"id\": \"check_backup_status\",\n          \"name\": \"Check Backup Status\",\n          \"type\": \"n8n-nodes-base.httpRequest\",\n          \"parameters\": {\n            \"url\": \"https://zmhqivcvewj6.manus.space/api/backup/status\",\n            \"method\": \"GET\",\n            \"headers\": {\n              \"Authorization\": \"Bearer {{$env.LASTWISH_API_KEY}}\"\n            }\n          },\n          \"position\": [300, 100]\n        },\n        {\n          \"id\": \"analyze_backup_integrity\",\n          \"name\": \"Analyze Backup Integrity\",\n          \"type\": \"n8n-nodes-base.code\",\n          \"parameters\": {\n            \"jsCode\": \"// Analyze backup integrity and recovery readiness\\nconst backupData = $json;\\nconst analysis = {\\n  backup_health: 'healthy',\\n  issues: [],\\n  recovery_readiness: 'ready',\\n  recommendations: []\\n};\\n\\n// Check backup frequency\\nconst lastBackup = new Date(backupData.last_backup_timestamp);\\nconst hoursSinceBackup = (new Date() - lastBackup) / (1000 * 60 * 60);\\n\\nif (hoursSinceBackup > 24) {\\n  analysis.backup_health = 'critical';\\n  analysis.issues.push({\\n    type: 'backup_overdue',\\n    severity: 'critical',\\n    description: `No backup completed in ${Math.floor(hoursSinceBackup)} hours`,\\n    action_required: 'Investigate backup system immediately'\\n  });\\n} else if (hoursSinceBackup > 12) {\\n  analysis.backup_health = 'warning';\\n  analysis.issues.push({\\n    type: 'backup_delayed',\\n    severity: 'medium',\\n    description: `Backup delayed by ${Math.floor(hoursSinceBackup - 12)} hours`\\n  });\\n}\\n\\n// Check backup integrity\\nif (backupData.integrity_checks) {\\n  for (const check of backupData.integrity_checks) {\\n    if (!check.passed) {\\n      analysis.backup_health = 'critical';\\n      analysis.issues.push({\\n        type: 'integrity_failure',\\n        severity: 'critical',\\n        description: `Backup integrity check failed: ${check.component}`,\\n        details: check.error_details\\n      });\\n    }\\n  }\\n}\\n\\n// Check storage capacity\\nif (backupData.storage_usage) {\\n  const usagePercent = (backupData.storage_usage.used / backupData.storage_usage.total) * 100;\\n  \\n  if (usagePercent > 90) {\\n    analysis.backup_health = 'critical';\\n    analysis.issues.push({\\n      type: 'storage_critical',\\n      severity: 'critical',\\n      description: `Backup storage ${usagePercent.toFixed(1)}% full`,\\n      action_required: 'Increase storage capacity immediately'\\n    });\\n  } else if (usagePercent > 80) {\\n    analysis.backup_health = 'warning';\\n    analysis.issues.push({\\n      type: 'storage_warning',\\n      severity: 'medium',\\n      description: `Backup storage ${usagePercent.toFixed(1)}% full`,\\n      recommendation: 'Plan storage capacity increase'\\n    });\\n  }\\n}\\n\\n// Check recovery test results\\nif (backupData.last_recovery_test) {\\n  const testDate = new Date(backupData.last_recovery_test.date);\\n  const daysSinceTest = (new Date() - testDate) / (1000 * 60 * 60 * 24);\\n  \\n  if (daysSinceTest > 30) {\\n    analysis.recovery_readiness = 'unknown';\\n    analysis.recommendations.push({\\n      type: 'recovery_test_overdue',\\n      description: 'Recovery test overdue - last test was ${Math.floor(daysSinceTest)} days ago',\\n      action: 'Schedule recovery test within 7 days'\\n    });\\n  }\\n  \\n  if (!backupData.last_recovery_test.successful) {\\n    analysis.recovery_readiness = 'failed';\\n    analysis.issues.push({\\n      type: 'recovery_test_failed',\\n      severity: 'critical',\\n      description: 'Last recovery test failed',\\n      details: backupData.last_recovery_test.error_details\\n    });\\n  }\\n}\\n\\nreturn {\\n  backup_analysis: analysis,\\n  backup_data: backupData,\\n  requires_immediate_action: analysis.backup_health === 'critical',\\n  analysis_timestamp: new Date().toISOString()\\n};\"\n          },\n          \"position\": [500, 100]\n        },\n        {\n          \"id\": \"automated_backup_fixes\",\n          \"name\": \"Automated Backup Fixes\",\n          \"type\": \"n8n-nodes-base.httpRequest\",\n          \"parameters\": {\n            \"url\": \"https://zmhqivcvewj6.manus.space/api/backup/auto-fix\",\n            \"method\": \"POST\",\n            \"body\": {\n              \"issues\": \"{{$json.backup_analysis.issues}}\",\n              \"auto_fix_enabled\": true,\n              \"source\": \"automated_backup_monitoring\"\n            }\n          },\n          \"position\": [700, 100]\n        },\n        {\n          \"id\": \"schedule_recovery_test\",\n          \"name\": \"Schedule Recovery Test\",\n          \"type\": \"n8n-nodes-base.code\",\n          \"parameters\": {\n            \"jsCode\": \"// Schedule recovery test if needed\\nconst analysis = $node['analyze_backup_integrity'].json;\\nconst needsRecoveryTest = analysis.backup_analysis.recovery_readiness === 'unknown' || \\n                         analysis.backup_analysis.recovery_readiness === 'failed';\\n\\nif (needsRecoveryTest) {\\n  return {\\n    schedule_test: true,\\n    test_type: 'partial_recovery',\\n    scheduled_for: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),\\n    reason: analysis.backup_analysis.recovery_readiness\\n  };\\n} else {\\n  return {\\n    schedule_test: false,\\n    reason: 'Recovery test not needed at this time'\\n  };\\n}\"\n          },\n          \"position\": [900, 100]\n        }\n      ],\n      \"connections\": {\n        \"backup_monitor_trigger\": {\n          \"main\": [[\"check_backup_status\"]]\n        },\n        \"check_backup_status\": {\n          \"main\": [[\"analyze_backup_integrity\"]]\n        },\n        \"analyze_backup_integrity\": {\n          \"main\": [[\"automated_backup_fixes\"]]\n        },\n        \"automated_backup_fixes\": {\n          \"main\": [[\"schedule_recovery_test\"]]\n        }\n      }\n    },\n    {\n      \"name\": \"Audit Trail Monitor\",\n      \"description\": \"Monitors and maintains comprehensive audit trails for compliance and security\",\n      \"trigger\": \"schedule\",\n      \"frequency\": \"hourly\",\n      \"nodes\": [\n        {\n          \"id\": \"audit_trail_check\",\n          \"name\": \"Audit Trail Check\",\n          \"type\": \"n8n-nodes-base.cron\",\n          \"parameters\": {\n            \"rule\": {\n              \"minute\": 0\n            }\n          },\n          \"position\": [100, 100]\n        },\n        {\n          \"id\": \"collect_audit_events\",\n          \"name\": \"Collect Audit Events\",\n          \"type\": \"n8n-nodes-base.httpRequest\",\n          \"parameters\": {\n            \"url\": \"https://zmhqivcvewj6.manus.space/api/audit/events\",\n            \"method\": \"GET\",\n            \"headers\": {\n              \"Authorization\": \"Bearer {{$env.LASTWISH_API_KEY}}\"\n            },\n            \"qs\": {\n              \"since\": \"{{new Date(Date.now() - 60 * 60 * 1000).toISOString()}}\",\n              \"include_sensitive\": \"false\"\n            }\n          },\n          \"position\": [300, 100]\n        },\n        {\n          \"id\": \"analyze_audit_events\",\n          \"name\": \"Analyze Audit Events\",\n          \"type\": \"n8n-nodes-base.code\",\n          \"parameters\": {\n            \"jsCode\": \"// Analyze audit events for security and compliance\\nconst events = $json.audit_events || [];\\nconst analysis = {\\n  suspicious_activities: [],\\n  compliance_events: [],\\n  security_events: [],\\n  data_access_events: [],\\n  administrative_events: []\\n};\\n\\nfor (const event of events) {\\n  // Categorize events\\n  switch (event.category) {\\n    case 'user_authentication':\\n      if (event.result === 'failed' && event.attempts > 3) {\\n        analysis.suspicious_activities.push({\\n          type: 'multiple_failed_logins',\\n          user_id: event.user_id,\\n          ip_address: event.ip_address,\\n          attempts: event.attempts,\\n          timestamp: event.timestamp\\n        });\\n      }\\n      break;\\n      \\n    case 'data_access':\\n      analysis.data_access_events.push({\\n        type: event.action,\\n        user_id: event.user_id,\\n        resource: event.resource,\\n        timestamp: event.timestamp,\\n        sensitive: event.sensitive_data || false\\n      });\\n      \\n      // Flag unusual data access patterns\\n      if (event.off_hours || event.unusual_location) {\\n        analysis.suspicious_activities.push({\\n          type: 'unusual_data_access',\\n          user_id: event.user_id,\\n          resource: event.resource,\\n          flags: [\\n            event.off_hours ? 'off_hours' : null,\\n            event.unusual_location ? 'unusual_location' : null\\n          ].filter(Boolean),\\n          timestamp: event.timestamp\\n        });\\n      }\\n      break;\\n      \\n    case 'administrative':\\n      analysis.administrative_events.push({\\n        type: event.action,\\n        admin_user: event.user_id,\\n        target: event.target,\\n        timestamp: event.timestamp\\n      });\\n      \\n      // Flag critical admin actions\\n      if (['user_deletion', 'permission_escalation', 'system_configuration'].includes(event.action)) {\\n        analysis.security_events.push({\\n          type: 'critical_admin_action',\\n          action: event.action,\\n          admin_user: event.user_id,\\n          timestamp: event.timestamp,\\n          requires_review: true\\n        });\\n      }\\n      break;\\n      \\n    case 'compliance':\\n      analysis.compliance_events.push({\\n        type: event.action,\\n        details: event.details,\\n        timestamp: event.timestamp,\\n        compliance_area: event.compliance_area\\n      });\\n      break;\\n  }\\n}\\n\\nreturn {\\n  audit_analysis: analysis,\\n  total_events: events.length,\\n  suspicious_count: analysis.suspicious_activities.length,\\n  security_events_count: analysis.security_events.length,\\n  analysis_period: '1_hour',\\n  analysis_timestamp: new Date().toISOString()\\n};\"\n          },\n          \"position\": [500, 100]\n        },\n        {\n          \"id\": \"nlweb_audit_analysis\",\n          \"name\": \"NLWeb Audit Analysis\",\n          \"type\": \"n8n-nodes-base.httpRequest\",\n          \"parameters\": {\n            \"url\": \"http://nlweb:8080/api/audit-analysis\",\n            \"method\": \"POST\",\n            \"body\": {\n              \"query\": \"Analyze these audit events for security threats and compliance issues. Provide: 1) Risk assessment, 2) Pattern analysis, 3) Recommended investigations, 4) Compliance implications, 5) Preventive measures.\",\n              \"audit_data\": \"{{$json.audit_analysis}}\",\n              \"context\": \"estate_planning_platform_audit\",\n              \"format\": \"security_audit_report\"\n            }\n          },\n          \"position\": [700, 100]\n        },\n        {\n          \"id\": \"generate_audit_alerts\",\n          \"name\": \"Generate Audit Alerts\",\n          \"type\": \"n8n-nodes-base.code\",\n          \"parameters\": {\n            \"jsCode\": \"// Generate alerts based on audit analysis\\nconst analysis = $node['analyze_audit_events'].json;\\nconst nlwebAnalysis = $json;\\nconst alerts = [];\\n\\n// Generate alerts for suspicious activities\\nif (analysis.suspicious_count > 0) {\\n  alerts.push({\\n    type: 'suspicious_activity',\\n    severity: analysis.suspicious_count > 5 ? 'high' : 'medium',\\n    message: `${analysis.suspicious_count} suspicious activities detected in the last hour`,\\n    details: analysis.audit_analysis.suspicious_activities,\\n    requires_investigation: true\\n  });\\n}\\n\\n// Generate alerts for security events\\nif (analysis.security_events_count > 0) {\\n  alerts.push({\\n    type: 'security_event',\\n    severity: 'high',\\n    message: `${analysis.security_events_count} critical security events detected`,\\n    details: analysis.audit_analysis.security_events,\\n    requires_immediate_review: true\\n  });\\n}\\n\\n// Generate compliance alerts\\nconst complianceIssues = analysis.audit_analysis.compliance_events.filter(e => \\n  e.type === 'violation' || e.type === 'non_compliance'\\n);\\n\\nif (complianceIssues.length > 0) {\\n  alerts.push({\\n    type: 'compliance_issue',\\n    severity: 'high',\\n    message: `${complianceIssues.length} compliance issues detected`,\\n    details: complianceIssues,\\n    requires_legal_review: true\\n  });\\n}\\n\\nreturn {\\n  audit_alerts: alerts,\\n  alert_summary: {\\n    total_alerts: alerts.length,\\n    high_severity: alerts.filter(a => a.severity === 'high').length,\\n    requires_investigation: alerts.some(a => a.requires_investigation),\\n    requires_legal_review: alerts.some(a => a.requires_legal_review)\\n  },\\n  nlweb_recommendations: nlwebAnalysis.recommendations || []\\n};\"\n          },\n          \"position\": [900, 100]\n        }\n      ],\n      \"connections\": {\n        \"audit_trail_check\": {\n          \"main\": [[\"collect_audit_events\"]]\n        },\n        \"collect_audit_events\": {\n          \"main\": [[\"analyze_audit_events\"]]\n        },\n        \"analyze_audit_events\": {\n          \"main\": [[\"nlweb_audit_analysis\"]]\n        },\n        \"nlweb_audit_analysis\": {\n          \"main\": [[\"generate_audit_alerts\"]]\n        }\n      }\n    }\n  ],\n  \"deployment_configuration\": {\n    \"environment_variables\": [\n      \"NLWEB_API_KEY\",\n      \"LASTWISH_API_KEY\",\n      \"SECURITY_ALERT_EMAIL\",\n      \"COMPLIANCE_OFFICER_EMAIL\"\n    ],\n    \"monitoring_thresholds\": {\n      \"security_risk_score\": 30,\n      \"gdpr_compliance_score\": 90,\n      \"backup_failure_hours\": 24,\n      \"suspicious_activity_count\": 5\n    },\n    \"alert_escalation\": {\n      \"critical_security\": \"immediate\",\n      \"gdpr_violation\": \"within_4_hours\",\n      \"backup_failure\": \"within_2_hours\",\n      \"audit_anomaly\": \"within_24_hours\"\n    },\n    \"compliance_requirements\": [\n      \"GDPR\",\n      \"CCPA\",\n      \"SOC2\",\n      \"ISO27001\"\n    ]\n  }\n}"
+          },
+          "position": [900, 100]
+        }
+      ],
+      "connections": {
+        "gdpr_compliance_check": {
+          "main": [["fetch_data_processing_activities"]]
+        },
+        "fetch_data_processing_activities": {
+          "main": [["analyze_gdpr_compliance"]]
+        },
+        "analyze_gdpr_compliance": {
+          "main": [["nlweb_compliance_guidance"]]
+        },
+        "nlweb_compliance_guidance": {
+          "main": [["implement_compliance_fixes"]]
+        },
+        "implement_compliance_fixes": {
+          "main": [["generate_compliance_report"]]
+        },
+        "generate_compliance_report": {
+          "main": [["send_compliance_alert"]]
+        }
+      }
+    },
+    {
+      "name": "Data Backup and Recovery Monitor",
+      "description": "Monitors data backup integrity and tests recovery procedures",
+      "trigger": "schedule",
+      "frequency": "daily",
+      "nodes": [
+        {
+          "id": "backup_monitor_trigger",
+          "name": "Backup Monitor Trigger",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "hour": 2,
+              "minute": 30
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "check_backup_status",
+          "name": "Check Backup Status",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/backup/status",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "analyze_backup_integrity",
+          "name": "Analyze Backup Integrity",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Analyze backup integrity and recovery readiness\nconst backupData = $json;\nconst analysis = {\n  backup_health: 'healthy',\n  issues: [],\n  recovery_readiness: 'ready',\n  recommendations: []\n};\n\n// Check backup frequency\nconst lastBackup = new Date(backupData.last_backup_timestamp);\nconst hoursSinceBackup = (new Date() - lastBackup) / (1000 * 60 * 60);\n\nif (hoursSinceBackup > 24) {\n  analysis.backup_health = 'critical';\n  analysis.issues.push({\n    type: 'backup_overdue',\n    severity: 'critical',\n    description: `No backup completed in ${Math.floor(hoursSinceBackup)} hours`,\n    action_required: 'Investigate backup system immediately'\n  });\n} else if (hoursSinceBackup > 12) {\n  analysis.backup_health = 'warning';\n  analysis.issues.push({\n    type: 'backup_delayed',\n    severity: 'medium',\n    description: `Backup delayed by ${Math.floor(hoursSinceBackup - 12)} hours`\n  });\n}\n\n// Check backup integrity\nif (backupData.integrity_checks) {\n  for (const check of backupData.integrity_checks) {\n    if (!check.passed) {\n      analysis.backup_health = 'critical';\n      analysis.issues.push({\n        type: 'integrity_failure',\n        severity: 'critical',\n        description: `Backup integrity check failed: ${check.component}`,\n        details: check.error_details\n      });\n    }\n  }\n}\n\n// Check storage capacity\nif (backupData.storage_usage) {\n  const usagePercent = (backupData.storage_usage.used / backupData.storage_usage.total) * 100;\n  \n  if (usagePercent > 90) {\n    analysis.backup_health = 'critical';\n    analysis.issues.push({\n      type: 'storage_critical',\n      severity: 'critical',\n      description: `Backup storage ${usagePercent.toFixed(1)}% full`,\n      action_required: 'Increase storage capacity immediately'\n    });\n  } else if (usagePercent > 80) {\n    analysis.backup_health = 'warning';\n    analysis.issues.push({\n      type: 'storage_warning',\n      severity: 'medium',\n      description: `Backup storage ${usagePercent.toFixed(1)}% full`,\n      recommendation: 'Plan storage capacity increase'\n    });\n  }\n}\n\n// Check recovery test results\nif (backupData.last_recovery_test) {\n  const testDate = new Date(backupData.last_recovery_test.date);\n  const daysSinceTest = (new Date() - testDate) / (1000 * 60 * 60 * 24);\n  \n  if (daysSinceTest > 30) {\n    analysis.recovery_readiness = 'unknown';\n    analysis.recommendations.push({\n      type: 'recovery_test_overdue',\n      description: 'Recovery test overdue - last test was ${Math.floor(daysSinceTest)} days ago',\n      action: 'Schedule recovery test within 7 days'\n    });\n  }\n  \n  if (!backupData.last_recovery_test.successful) {\n    analysis.recovery_readiness = 'failed';\n    analysis.issues.push({\n      type: 'recovery_test_failed',\n      severity: 'critical',\n      description: 'Last recovery test failed',\n      details: backupData.last_recovery_test.error_details\n    });\n  }\n}\n\nreturn {\n  backup_analysis: analysis,\n  backup_data: backupData,\n  requires_immediate_action: analysis.backup_health === 'critical',\n  analysis_timestamp: new Date().toISOString()\n};"
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "automated_backup_fixes",
+          "name": "Automated Backup Fixes",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/backup/auto-fix",
+            "method": "POST",
+            "body": {
+              "issues": "{{$json.backup_analysis.issues}}",
+              "auto_fix_enabled": true,
+              "source": "automated_backup_monitoring"
+            }
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "schedule_recovery_test",
+          "name": "Schedule Recovery Test",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Schedule recovery test if needed\nconst analysis = $node['analyze_backup_integrity'].json;\nconst needsRecoveryTest = analysis.backup_analysis.recovery_readiness === 'unknown' || \n                         analysis.backup_analysis.recovery_readiness === 'failed';\n\nif (needsRecoveryTest) {\n  return {\n    schedule_test: true,\n    test_type: 'partial_recovery',\n    scheduled_for: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),\n    reason: analysis.backup_analysis.recovery_readiness\n  };\n} else {\n  return {\n    schedule_test: false,\n    reason: 'Recovery test not needed at this time'\n  };\n}"
+          },
+          "position": [900, 100]
+        }
+      ],
+      "connections": {
+        "backup_monitor_trigger": {
+          "main": [["check_backup_status"]]
+        },
+        "check_backup_status": {
+          "main": [["analyze_backup_integrity"]]
+        },
+        "analyze_backup_integrity": {
+          "main": [["automated_backup_fixes"]]
+        },
+        "automated_backup_fixes": {
+          "main": [["schedule_recovery_test"]]
+        }
+      }
+    },
+    {
+      "name": "Audit Trail Monitor",
+      "description": "Monitors and maintains comprehensive audit trails for compliance and security",
+      "trigger": "schedule",
+      "frequency": "hourly",
+      "nodes": [
+        {
+          "id": "audit_trail_check",
+          "name": "Audit Trail Check",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "minute": 0
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "collect_audit_events",
+          "name": "Collect Audit Events",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/audit/events",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}"
+            },
+            "qs": {
+              "since": "{{new Date(Date.now() - 60 * 60 * 1000).toISOString()}}",
+              "include_sensitive": "false"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "analyze_audit_events",
+          "name": "Analyze Audit Events",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Analyze audit events for security and compliance\nconst events = $json.audit_events || [];\nconst analysis = {\n  suspicious_activities: [],\n  compliance_events: [],\n  security_events: [],\n  data_access_events: [],\n  administrative_events: []\n};\n\nfor (const event of events) {\n  // Categorize events\n  switch (event.category) {\n    case 'user_authentication':\n      if (event.result === 'failed' && event.attempts > 3) {\n        analysis.suspicious_activities.push({\n          type: 'multiple_failed_logins',\n          user_id: event.user_id,\n          ip_address: event.ip_address,\n          attempts: event.attempts,\n          timestamp: event.timestamp\n        });\n      }\n      break;\n      \n    case 'data_access':\n      analysis.data_access_events.push({\n        type: event.action,\n        user_id: event.user_id,\n        resource: event.resource,\n        timestamp: event.timestamp,\n        sensitive: event.sensitive_data || false\n      });\n      \n      // Flag unusual data access patterns\n      if (event.off_hours || event.unusual_location) {\n        analysis.suspicious_activities.push({\n          type: 'unusual_data_access',\n          user_id: event.user_id,\n          resource: event.resource,\n          flags: [\n            event.off_hours ? 'off_hours' : null,\n            event.unusual_location ? 'unusual_location' : null\n          ].filter(Boolean),\n          timestamp: event.timestamp\n        });\n      }\n      break;\n      \n    case 'administrative':\n      analysis.administrative_events.push({\n        type: event.action,\n        admin_user: event.user_id,\n        target: event.target,\n        timestamp: event.timestamp\n      });\n      \n      // Flag critical admin actions\n      if (['user_deletion', 'permission_escalation', 'system_configuration'].includes(event.action)) {\n        analysis.security_events.push({\n          type: 'critical_admin_action',\n          action: event.action,\n          admin_user: event.user_id,\n          timestamp: event.timestamp,\n          requires_review: true\n        });\n      }\n      break;\n      \n    case 'compliance':\n      analysis.compliance_events.push({\n        type: event.action,\n        details: event.details,\n        timestamp: event.timestamp,\n        compliance_area: event.compliance_area\n      });\n      break;\n  }\n}\n\nreturn {\n  audit_analysis: analysis,\n  total_events: events.length,\n  suspicious_count: analysis.suspicious_activities.length,\n  security_events_count: analysis.security_events.length,\n  analysis_period: '1_hour',\n  analysis_timestamp: new Date().toISOString()\n};"
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "nlweb_audit_analysis",
+          "name": "NLWeb Audit Analysis",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/audit-analysis",
+            "method": "POST",
+            "body": {
+              "query": "Analyze these audit events for security threats and compliance issues. Provide: 1) Risk assessment, 2) Pattern analysis, 3) Recommended investigations, 4) Compliance implications, 5) Preventive measures.",
+              "audit_data": "{{$json.audit_analysis}}",
+              "context": "estate_planning_platform_audit",
+              "format": "security_audit_report"
+            }
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "generate_audit_alerts",
+          "name": "Generate Audit Alerts",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Generate alerts based on audit analysis\nconst analysis = $node['analyze_audit_events'].json;\nconst nlwebAnalysis = $json;\nconst alerts = [];\n\n// Generate alerts for suspicious activities\nif (analysis.suspicious_count > 0) {\n  alerts.push({\n    type: 'suspicious_activity',\n    severity: analysis.suspicious_count > 5 ? 'high' : 'medium',\n    message: `${analysis.suspicious_count} suspicious activities detected in the last hour`,\n    details: analysis.audit_analysis.suspicious_activities,\n    requires_investigation: true\n  });\n}\n\n// Generate alerts for security events\nif (analysis.security_events_count > 0) {\n  alerts.push({\n    type: 'security_event',\n    severity: 'high',\n    message: `${analysis.security_events_count} critical security events detected`,\n    details: analysis.audit_analysis.security_events,\n    requires_immediate_review: true\n  });\n}\n\n// Generate compliance alerts\nconst complianceIssues = analysis.audit_analysis.compliance_events.filter(e => \n  e.type === 'violation' || e.type === 'non_compliance'\n);\n\nif (complianceIssues.length > 0) {\n  alerts.push({\n    type: 'compliance_issue',\n    severity: 'high',\n    message: `${complianceIssues.length} compliance issues detected`,\n    details: complianceIssues,\n    requires_legal_review: true\n  });\n}\n\nreturn {\n  audit_alerts: alerts,\n  alert_summary: {\n    total_alerts: alerts.length,\n    high_severity: alerts.filter(a => a.severity === 'high').length,\n    requires_investigation: alerts.some(a => a.requires_investigation),\n    requires_legal_review: alerts.some(a => a.requires_legal_review)\n  },\n  nlweb_recommendations: nlwebAnalysis.recommendations || []\n};"
+          },
+          "position": [900, 100]
+        }
+      ],
+      "connections": {
+        "audit_trail_check": {
+          "main": [["collect_audit_events"]]
+        },
+        "collect_audit_events": {
+          "main": [["analyze_audit_events"]]
+        },
+        "analyze_audit_events": {
+          "main": [["nlweb_audit_analysis"]]
+        },
+        "nlweb_audit_analysis": {
+          "main": [["generate_audit_alerts"]]
+        }
+      }
+    }
+  ],
+  "deployment_configuration": {
+    "environment_variables": [
+      "NLWEB_API_KEY",
+      "LASTWISH_API_KEY",
+      "SECURITY_ALERT_EMAIL",
+      "COMPLIANCE_OFFICER_EMAIL"
+    ],
+    "monitoring_thresholds": {
+      "security_risk_score": 30,
+      "gdpr_compliance_score": 90,
+      "backup_failure_hours": 24,
+      "suspicious_activity_count": 5
+    },
+    "alert_escalation": {
+      "critical_security": "immediate",
+      "gdpr_violation": "within_4_hours",
+      "backup_failure": "within_2_hours",
+      "audit_anomaly": "within_24_hours"
+    },
+    "compliance_requirements": [
+      "GDPR",
+      "CCPA",
+      "SOC2",
+      "ISO27001"
+    ]
+  }
+}
+

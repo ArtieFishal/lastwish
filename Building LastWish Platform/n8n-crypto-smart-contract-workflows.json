@@ -1,0 +1,1119 @@
+{
+  "crypto_smart_contract_workflows": [
+    {
+      "workflow_name": "Smart Contract Deployment Automation",
+      "description": "Automatically deploy inheritance smart contracts when users create crypto inheritance plans",
+      "trigger": "webhook",
+      "workflow_json": {
+        "name": "Smart Contract Deployment Automation",
+        "nodes": [
+          {
+            "parameters": {
+              "httpMethod": "POST",
+              "path": "smart-contract-deploy",
+              "responseMode": "responseNode",
+              "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "Webhook Trigger",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [240, 300],
+            "webhookId": "crypto-contract-deploy"
+          },
+          {
+            "parameters": {
+              "jsCode": "// Validate smart contract deployment request\nconst requestData = $input.first().json;\n\n// Validate required fields\nconst requiredFields = ['user_id', 'wallet_address', 'beneficiaries', 'network', 'inactivity_period', 'time_delay'];\nconst missingFields = requiredFields.filter(field => !requestData[field]);\n\nif (missingFields.length > 0) {\n  return [{\n    json: {\n      success: false,\n      error: `Missing required fields: ${missingFields.join(', ')}`,\n      validation_failed: true\n    }\n  }];\n}\n\n// Validate beneficiaries allocation\nconst beneficiaries = requestData.beneficiaries;\nconst totalAllocation = beneficiaries.reduce((sum, b) => sum + (b.allocation_percentage || 0), 0);\n\nif (totalAllocation !== 100) {\n  return [{\n    json: {\n      success: false,\n      error: 'Total beneficiary allocation must equal 100%',\n      validation_failed: true\n    }\n  }];\n}\n\n// Validate network support\nconst supportedNetworks = ['ethereum', 'polygon', 'binance_smart_chain', 'avalanche'];\nif (!supportedNetworks.includes(requestData.network)) {\n  return [{\n    json: {\n      success: false,\n      error: `Unsupported network: ${requestData.network}`,\n      validation_failed: true\n    }\n  }];\n}\n\n// Prepare contract deployment data\nconst contractData = {\n  user_id: requestData.user_id,\n  wallet_address: requestData.wallet_address,\n  network: requestData.network,\n  beneficiaries: beneficiaries.map(b => ({\n    wallet_address: b.crypto_wallet_address,\n    allocation_percentage: b.allocation_percentage,\n    beneficiary_name: b.beneficiary_name\n  })),\n  inactivity_period_days: requestData.inactivity_period,\n  time_delay_days: requestData.time_delay,\n  deployment_timestamp: new Date().toISOString(),\n  contract_id: `contract_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn [{\n  json: {\n    success: true,\n    contract_data: contractData,\n    validation_passed: true\n  }\n}];"
+            },
+            "id": "validate-request",
+            "name": "Validate Request",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [460, 300]
+          },
+          {
+            "parameters": {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "validation-check",
+                    "leftValue": "={{ $json.validation_failed }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equal"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "options": {}
+            },
+            "id": "validation-branch",
+            "name": "Validation Branch",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [680, 300]
+          },
+          {
+            "parameters": {
+              "jsCode": "// Simulate smart contract deployment\nconst contractData = $input.first().json.contract_data;\n\n// Generate simulated contract address\nconst contractAddress = `0x${Math.random().toString(16).substr(2, 40)}`;\nconst transactionHash = `0x${Math.random().toString(16).substr(2, 64)}`;\n\n// Estimate gas costs based on network\nconst gasCosts = {\n  ethereum: { gas_price: 20000000000, gas_limit: 500000, cost_eth: 0.01 },\n  polygon: { gas_price: 30000000000, gas_limit: 500000, cost_matic: 0.015 },\n  binance_smart_chain: { gas_price: 5000000000, gas_limit: 500000, cost_bnb: 0.0025 },\n  avalanche: { gas_price: 25000000000, gas_limit: 500000, cost_avax: 0.0125 }\n};\n\nconst networkCosts = gasCosts[contractData.network] || gasCosts.ethereum;\n\n// Create deployment result\nconst deploymentResult = {\n  contract_address: contractAddress,\n  transaction_hash: transactionHash,\n  network: contractData.network,\n  deployment_status: 'success',\n  deployment_timestamp: new Date().toISOString(),\n  gas_used: networkCosts.gas_limit,\n  gas_price: networkCosts.gas_price,\n  deployment_cost: Object.values(networkCosts)[2], // Get the cost value\n  beneficiary_count: contractData.beneficiaries.length,\n  inactivity_period: contractData.inactivity_period_days,\n  time_delay: contractData.time_delay_days,\n  contract_features: [\n    'Automated inheritance execution',\n    'Multi-beneficiary support',\n    'Inactivity monitoring',\n    'Time delay protection',\n    'Emergency override'\n  ],\n  next_steps: [\n    'Fund the contract with crypto assets',\n    'Verify beneficiary wallet addresses',\n    'Set up activity monitoring',\n    'Configure emergency contacts'\n  ]\n};\n\nreturn [{\n  json: {\n    success: true,\n    deployment_result: deploymentResult,\n    user_id: contractData.user_id,\n    contract_id: contractData.contract_id\n  }\n}];"
+            },
+            "id": "deploy-contract",
+            "name": "Deploy Smart Contract",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [900, 200]
+          },
+          {
+            "parameters": {
+              "url": "={{ $vars.LASTWISH_API_URL }}/api/crypto/inheritance/contract-deployed",
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "httpHeaderAuth",
+              "sendHeaders": true,
+              "headerParameters": {
+                "parameters": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{ $vars.LASTWISH_API_TOKEN }}"
+                  }
+                ]
+              },
+              "sendBody": true,
+              "bodyParameters": {
+                "parameters": [
+                  {
+                    "name": "user_id",
+                    "value": "={{ $json.user_id }}"
+                  },
+                  {
+                    "name": "contract_id",
+                    "value": "={{ $json.contract_id }}"
+                  },
+                  {
+                    "name": "deployment_result",
+                    "value": "={{ $json.deployment_result }}"
+                  }
+                ]
+              },
+              "options": {}
+            },
+            "id": "update-database",
+            "name": "Update Database",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [1120, 200]
+          },
+          {
+            "parameters": {
+              "url": "={{ $vars.LASTWISH_API_URL }}/api/notifications/send",
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "httpHeaderAuth",
+              "sendHeaders": true,
+              "headerParameters": {
+                "parameters": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{ $vars.LASTWISH_API_TOKEN }}"
+                  }
+                ]
+              },
+              "sendBody": true,
+              "bodyParameters": {
+                "parameters": [
+                  {
+                    "name": "user_id",
+                    "value": "={{ $json.user_id }}"
+                  },
+                  {
+                    "name": "notification_type",
+                    "value": "smart_contract_deployed"
+                  },
+                  {
+                    "name": "title",
+                    "value": "Smart Contract Successfully Deployed"
+                  },
+                  {
+                    "name": "message",
+                    "value": "Your crypto inheritance smart contract has been deployed on {{ $json.deployment_result.network }}. Contract address: {{ $json.deployment_result.contract_address }}"
+                  },
+                  {
+                    "name": "contract_details",
+                    "value": "={{ $json.deployment_result }}"
+                  }
+                ]
+              },
+              "options": {}
+            },
+            "id": "notify-user",
+            "name": "Notify User",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [1340, 200]
+          },
+          {
+            "parameters": {
+              "respondWith": "json",
+              "responseBody": "={{ $json.deployment_result }}"
+            },
+            "id": "success-response",
+            "name": "Success Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [1560, 200]
+          },
+          {
+            "parameters": {
+              "respondWith": "json",
+              "responseBody": "={{ $json }}"
+            },
+            "id": "error-response",
+            "name": "Error Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [900, 400]
+          }
+        ],
+        "connections": {
+          "Webhook Trigger": {
+            "main": [
+              [
+                {
+                  "node": "Validate Request",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Validate Request": {
+            "main": [
+              [
+                {
+                  "node": "Validation Branch",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Validation Branch": {
+            "main": [
+              [
+                {
+                  "node": "Error Response",
+                  "type": "main",
+                  "index": 0
+                }
+              ],
+              [
+                {
+                  "node": "Deploy Smart Contract",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Deploy Smart Contract": {
+            "main": [
+              [
+                {
+                  "node": "Update Database",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Update Database": {
+            "main": [
+              [
+                {
+                  "node": "Notify User",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Notify User": {
+            "main": [
+              [
+                {
+                  "node": "Success Response",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          }
+        },
+        "pinData": {},
+        "settings": {
+          "executionOrder": "v1"
+        },
+        "staticData": null,
+        "tags": ["crypto", "smart-contract", "inheritance", "blockchain"],
+        "triggerCount": 1,
+        "updatedAt": "2025-01-01T00:00:00.000Z",
+        "versionId": "1"
+      }
+    },
+    {
+      "workflow_name": "Smart Contract Activity Monitor",
+      "description": "Monitor smart contract activity and trigger inheritance when conditions are met",
+      "trigger": "cron",
+      "workflow_json": {
+        "name": "Smart Contract Activity Monitor",
+        "nodes": [
+          {
+            "parameters": {
+              "rule": {
+                "interval": [
+                  {
+                    "field": "hours",
+                    "hoursInterval": 6
+                  }
+                ]
+              }
+            },
+            "id": "cron-trigger",
+            "name": "Every 6 Hours",
+            "type": "n8n-nodes-base.cron",
+            "typeVersion": 1,
+            "position": [240, 300]
+          },
+          {
+            "parameters": {
+              "url": "={{ $vars.LASTWISH_API_URL }}/api/crypto/inheritance/active-contracts",
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "httpHeaderAuth",
+              "sendHeaders": true,
+              "headerParameters": {
+                "parameters": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{ $vars.LASTWISH_API_TOKEN }}"
+                  }
+                ]
+              },
+              "options": {}
+            },
+            "id": "get-active-contracts",
+            "name": "Get Active Contracts",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [460, 300]
+          },
+          {
+            "parameters": {
+              "jsCode": "// Process active contracts and check for inheritance triggers\nconst contracts = $input.first().json.contracts || [];\nconst currentTime = new Date();\nconst triggeredContracts = [];\n\nfor (const contract of contracts) {\n  const lastActivity = new Date(contract.last_activity);\n  const inactivityPeriod = contract.inactivity_period_days * 24 * 60 * 60 * 1000; // Convert to milliseconds\n  const timeSinceActivity = currentTime - lastActivity;\n  \n  // Check if inactivity period has been exceeded\n  if (timeSinceActivity >= inactivityPeriod && !contract.inheritance_triggered) {\n    triggeredContracts.push({\n      contract_id: contract.id,\n      contract_address: contract.contract_address,\n      network: contract.network,\n      user_id: contract.user_id,\n      wallet_address: contract.wallet_address,\n      last_activity: contract.last_activity,\n      inactivity_period_days: contract.inactivity_period_days,\n      time_delay_days: contract.time_delay_days,\n      beneficiaries: contract.beneficiaries,\n      days_inactive: Math.floor(timeSinceActivity / (24 * 60 * 60 * 1000)),\n      trigger_reason: 'inactivity_period_exceeded',\n      trigger_timestamp: currentTime.toISOString()\n    });\n  }\n}\n\nreturn triggeredContracts.map(contract => ({ json: contract }));"
+            },
+            "id": "check-triggers",
+            "name": "Check Inheritance Triggers",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [680, 300]
+          },
+          {
+            "parameters": {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "has-triggered-contracts",
+                    "leftValue": "={{ $json.contract_id }}",
+                    "rightValue": "",
+                    "operator": {
+                      "type": "string",
+                      "operation": "notEmpty"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "options": {}
+            },
+            "id": "has-triggers",
+            "name": "Has Triggered Contracts",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [900, 300]
+          },
+          {
+            "parameters": {
+              "jsCode": "// Prepare inheritance execution data\nconst contract = $input.first().json;\n\n// Calculate time delay before execution\nconst triggerTime = new Date(contract.trigger_timestamp);\nconst executionTime = new Date(triggerTime.getTime() + (contract.time_delay_days * 24 * 60 * 60 * 1000));\nconst currentTime = new Date();\n\n// Check if time delay has passed\nconst canExecute = currentTime >= executionTime;\n\nconst inheritanceData = {\n  contract_id: contract.contract_id,\n  contract_address: contract.contract_address,\n  network: contract.network,\n  user_id: contract.user_id,\n  wallet_address: contract.wallet_address,\n  beneficiaries: contract.beneficiaries,\n  trigger_reason: contract.trigger_reason,\n  trigger_timestamp: contract.trigger_timestamp,\n  execution_time: executionTime.toISOString(),\n  can_execute: canExecute,\n  days_until_execution: canExecute ? 0 : Math.ceil((executionTime - currentTime) / (24 * 60 * 60 * 1000)),\n  status: canExecute ? 'ready_for_execution' : 'waiting_for_delay'\n};\n\nreturn [{ json: inheritanceData }];"
+            },
+            "id": "prepare-execution",
+            "name": "Prepare Inheritance Execution",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [1120, 200]
+          },
+          {
+            "parameters": {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "can-execute-check",
+                    "leftValue": "={{ $json.can_execute }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equal"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "options": {}
+            },
+            "id": "execution-ready",
+            "name": "Execution Ready",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [1340, 200]
+          },
+          {
+            "parameters": {
+              "url": "={{ $vars.LASTWISH_API_URL }}/api/crypto/inheritance/execute",
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "httpHeaderAuth",
+              "sendHeaders": true,
+              "headerParameters": {
+                "parameters": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{ $vars.LASTWISH_API_TOKEN }}"
+                  }
+                ]
+              },
+              "sendBody": true,
+              "bodyParameters": {
+                "parameters": [
+                  {
+                    "name": "contract_id",
+                    "value": "={{ $json.contract_id }}"
+                  },
+                  {
+                    "name": "execution_type",
+                    "value": "automated"
+                  },
+                  {
+                    "name": "trigger_reason",
+                    "value": "={{ $json.trigger_reason }}"
+                  }
+                ]
+              },
+              "options": {}
+            },
+            "id": "execute-inheritance",
+            "name": "Execute Inheritance",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [1560, 100]
+          },
+          {
+            "parameters": {
+              "url": "={{ $vars.LASTWISH_API_URL }}/api/notifications/send-urgent",
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "httpHeaderAuth",
+              "sendHeaders": true,
+              "headerParameters": {
+                "parameters": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{ $vars.LASTWISH_API_TOKEN }}"
+                  }
+                ]
+              },
+              "sendBody": true,
+              "bodyParameters": {
+                "parameters": [
+                  {
+                    "name": "user_id",
+                    "value": "={{ $json.user_id }}"
+                  },
+                  {
+                    "name": "notification_type",
+                    "value": "inheritance_triggered"
+                  },
+                  {
+                    "name": "title",
+                    "value": "Inheritance Process Triggered"
+                  },
+                  {
+                    "name": "message",
+                    "value": "Your crypto inheritance plan has been triggered due to {{ $json.trigger_reason }}. Execution will occur in {{ $json.days_until_execution }} days."
+                  },
+                  {
+                    "name": "urgency",
+                    "value": "high"
+                  },
+                  {
+                    "name": "inheritance_data",
+                    "value": "={{ $json }}"
+                  }
+                ]
+              },
+              "options": {}
+            },
+            "id": "notify-trigger",
+            "name": "Notify Inheritance Triggered",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [1560, 300]
+          }
+        ],
+        "connections": {
+          "Every 6 Hours": {
+            "main": [
+              [
+                {
+                  "node": "Get Active Contracts",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Get Active Contracts": {
+            "main": [
+              [
+                {
+                  "node": "Check Inheritance Triggers",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Check Inheritance Triggers": {
+            "main": [
+              [
+                {
+                  "node": "Has Triggered Contracts",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Has Triggered Contracts": {
+            "main": [
+              [],
+              [
+                {
+                  "node": "Prepare Inheritance Execution",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Prepare Inheritance Execution": {
+            "main": [
+              [
+                {
+                  "node": "Execution Ready",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Execution Ready": {
+            "main": [
+              [
+                {
+                  "node": "Notify Inheritance Triggered",
+                  "type": "main",
+                  "index": 0
+                }
+              ],
+              [
+                {
+                  "node": "Execute Inheritance",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          }
+        },
+        "pinData": {},
+        "settings": {
+          "executionOrder": "v1"
+        },
+        "staticData": null,
+        "tags": ["crypto", "monitoring", "inheritance", "automation"],
+        "triggerCount": 1,
+        "updatedAt": "2025-01-01T00:00:00.000Z",
+        "versionId": "1"
+      }
+    },
+    {
+      "workflow_name": "Crypto Asset Transfer Executor",
+      "description": "Execute crypto asset transfers to beneficiaries when inheritance is triggered",
+      "trigger": "webhook",
+      "workflow_json": {
+        "name": "Crypto Asset Transfer Executor",
+        "nodes": [
+          {
+            "parameters": {
+              "httpMethod": "POST",
+              "path": "crypto-transfer-execute",
+              "responseMode": "responseNode",
+              "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "Transfer Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [240, 300],
+            "webhookId": "crypto-transfer-execute"
+          },
+          {
+            "parameters": {
+              "jsCode": "// Validate transfer execution request\nconst requestData = $input.first().json;\n\n// Validate required fields\nconst requiredFields = ['contract_id', 'wallet_address', 'beneficiaries', 'network', 'authorization'];\nconst missingFields = requiredFields.filter(field => !requestData[field]);\n\nif (missingFields.length > 0) {\n  return [{\n    json: {\n      success: false,\n      error: `Missing required fields: ${missingFields.join(', ')}`,\n      validation_failed: true\n    }\n  }];\n}\n\n// Validate authorization\nif (!requestData.authorization || !requestData.authorization.verified) {\n  return [{\n    json: {\n      success: false,\n      error: 'Transfer authorization required',\n      validation_failed: true\n    }\n  }];\n}\n\n// Validate beneficiaries\nconst beneficiaries = requestData.beneficiaries;\nif (!Array.isArray(beneficiaries) || beneficiaries.length === 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'At least one beneficiary required',\n      validation_failed: true\n    }\n  }];\n}\n\n// Validate wallet addresses\nfor (const beneficiary of beneficiaries) {\n  if (!beneficiary.crypto_wallet_address) {\n    return [{\n      json: {\n        success: false,\n        error: `Missing wallet address for beneficiary: ${beneficiary.beneficiary_name}`,\n        validation_failed: true\n      }\n    }];\n  }\n}\n\n// Prepare transfer execution data\nconst transferData = {\n  contract_id: requestData.contract_id,\n  wallet_address: requestData.wallet_address,\n  network: requestData.network,\n  beneficiaries: beneficiaries,\n  authorization: requestData.authorization,\n  execution_timestamp: new Date().toISOString(),\n  execution_id: `exec_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`\n};\n\nreturn [{\n  json: {\n    success: true,\n    transfer_data: transferData,\n    validation_passed: true\n  }\n}];"
+            },
+            "id": "validate-transfer",
+            "name": "Validate Transfer Request",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [460, 300]
+          },
+          {
+            "parameters": {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "validation-check",
+                    "leftValue": "={{ $json.validation_failed }}",
+                    "rightValue": true,
+                    "operator": {
+                      "type": "boolean",
+                      "operation": "equal"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "options": {}
+            },
+            "id": "validation-branch",
+            "name": "Validation Branch",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [680, 300]
+          },
+          {
+            "parameters": {
+              "url": "={{ $vars.BLOCKCHAIN_API_URL }}/wallet/balance",
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "httpHeaderAuth",
+              "sendHeaders": true,
+              "headerParameters": {
+                "parameters": [
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{ $vars.BLOCKCHAIN_API_TOKEN }}"
+                  }
+                ]
+              },
+              "sendQuery": true,
+              "queryParameters": {
+                "parameters": [
+                  {
+                    "name": "address",
+                    "value": "={{ $json.transfer_data.wallet_address }}"
+                  },
+                  {
+                    "name": "network",
+                    "value": "={{ $json.transfer_data.network }}"
+                  }
+                ]
+              },
+              "options": {}
+            },
+            "id": "get-wallet-balance",
+            "name": "Get Wallet Balance",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [900, 200]
+          },
+          {
+            "parameters": {
+              "jsCode": "// Calculate transfer amounts and prepare transactions\nconst transferData = $input.all()[0].json.transfer_data;\nconst balanceData = $input.all()[1].json;\n\nconst totalBalance = parseFloat(balanceData.balance || 0);\nconst beneficiaries = transferData.beneficiaries;\n\n// Estimate gas costs\nconst gasEstimate = {\n  ethereum: 0.005,\n  polygon: 0.001,\n  binance_smart_chain: 0.0005,\n  avalanche: 0.002\n};\n\nconst estimatedGasCost = gasEstimate[transferData.network] || 0.005;\nconst totalGasCost = estimatedGasCost * beneficiaries.length;\nconst availableForTransfer = totalBalance - totalGasCost;\n\nif (availableForTransfer <= 0) {\n  return [{\n    json: {\n      success: false,\n      error: 'Insufficient balance to cover gas costs',\n      total_balance: totalBalance,\n      estimated_gas_cost: totalGasCost\n    }\n  }];\n}\n\n// Calculate individual transfer amounts\nconst transfers = beneficiaries.map(beneficiary => {\n  const allocationAmount = availableForTransfer * (beneficiary.allocation_percentage / 100);\n  return {\n    beneficiary_name: beneficiary.beneficiary_name,\n    wallet_address: beneficiary.crypto_wallet_address,\n    allocation_percentage: beneficiary.allocation_percentage,\n    transfer_amount: allocationAmount,\n    transaction_id: `tx_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,\n    status: 'pending'\n  };\n});\n\nconst transferPlan = {\n  execution_id: transferData.execution_id,\n  wallet_address: transferData.wallet_address,\n  network: transferData.network,\n  total_balance: totalBalance,\n  available_for_transfer: availableForTransfer,\n  estimated_gas_cost: totalGasCost,\n  transfer_count: transfers.length,\n  transfers: transfers,\n  execution_timestamp: transferData.execution_timestamp\n};\n\nreturn [{\n  json: {\n    success: true,\n    transfer_plan: transferPlan\n  }\n}];"
+            },
+            "id": "calculate-transfers",
+            "name": "Calculate Transfer Amounts",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [1120, 200]
+          },
+          {
+            "parameters": {
+              "jsCode": "// Simulate blockchain transaction execution\nconst transferPlan = $input.first().json.transfer_plan;\nconst transfers = transferPlan.transfers;\n\n// Simulate transaction execution for each transfer\nconst executedTransfers = transfers.map(transfer => {\n  // Generate simulated transaction hash\n  const transactionHash = `0x${Math.random().toString(16).substr(2, 64)}`;\n  \n  // Simulate transaction success (95% success rate)\n  const isSuccessful = Math.random() > 0.05;\n  \n  return {\n    ...transfer,\n    transaction_hash: transactionHash,\n    status: isSuccessful ? 'completed' : 'failed',\n    gas_used: 21000,\n    gas_cost: 0.001,\n    confirmation_time: new Date().toISOString(),\n    block_number: Math.floor(Math.random() * 1000000) + 18000000,\n    error_message: isSuccessful ? null : 'Insufficient gas or network congestion'\n  };\n});\n\n// Calculate execution summary\nconst successfulTransfers = executedTransfers.filter(t => t.status === 'completed');\nconst failedTransfers = executedTransfers.filter(t => t.status === 'failed');\nconst totalTransferred = successfulTransfers.reduce((sum, t) => sum + t.transfer_amount, 0);\nconst totalGasCost = executedTransfers.reduce((sum, t) => sum + t.gas_cost, 0);\n\nconst executionSummary = {\n  execution_id: transferPlan.execution_id,\n  wallet_address: transferPlan.wallet_address,\n  network: transferPlan.network,\n  execution_status: failedTransfers.length === 0 ? 'completed' : 'partial_failure',\n  total_transfers: executedTransfers.length,\n  successful_transfers: successfulTransfers.length,\n  failed_transfers: failedTransfers.length,\n  total_amount_transferred: totalTransferred,\n  total_gas_cost: totalGasCost,\n  execution_time: new Date().toISOString(),\n  transfer_results: executedTransfers,\n  next_actions: failedTransfers.length > 0 ? [\n    'Review failed transactions',\n    'Retry failed transfers if needed',\n    'Contact beneficiaries about successful transfers'\n  ] : [\n    'Notify all beneficiaries of successful transfers',\n    'Update inheritance plan status',\n    'Generate completion report'\n  ]\n};\n\nreturn [{\n  json: {\n    success: true,\n    execution_summary: executionSummary\n  }\n}];"
+            },
+            "id": "execute-transfers",
+            "name": "Execute Blockchain Transfers",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [1340, 200]
+          },
+          {
+            "parameters": {
+              "url": "={{ $vars.LASTWISH_API_URL }}/api/crypto/inheritance/transfer-completed",
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "httpHeaderAuth",
+              "sendHeaders": true,
+              "headerParameters": {
+                "parameters": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{ $vars.LASTWISH_API_TOKEN }}"
+                  }
+                ]
+              },
+              "sendBody": true,
+              "bodyParameters": {
+                "parameters": [
+                  {
+                    "name": "execution_summary",
+                    "value": "={{ $json.execution_summary }}"
+                  }
+                ]
+              },
+              "options": {}
+            },
+            "id": "update-database",
+            "name": "Update Database",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [1560, 200]
+          },
+          {
+            "parameters": {
+              "respondWith": "json",
+              "responseBody": "={{ $json.execution_summary }}"
+            },
+            "id": "success-response",
+            "name": "Success Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [1780, 200]
+          },
+          {
+            "parameters": {
+              "respondWith": "json",
+              "responseBody": "={{ $json }}"
+            },
+            "id": "error-response",
+            "name": "Error Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [900, 400]
+          }
+        ],
+        "connections": {
+          "Transfer Webhook": {
+            "main": [
+              [
+                {
+                  "node": "Validate Transfer Request",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Validate Transfer Request": {
+            "main": [
+              [
+                {
+                  "node": "Validation Branch",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Validation Branch": {
+            "main": [
+              [
+                {
+                  "node": "Error Response",
+                  "type": "main",
+                  "index": 0
+                }
+              ],
+              [
+                {
+                  "node": "Get Wallet Balance",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Get Wallet Balance": {
+            "main": [
+              [
+                {
+                  "node": "Calculate Transfer Amounts",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Calculate Transfer Amounts": {
+            "main": [
+              [
+                {
+                  "node": "Execute Blockchain Transfers",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Execute Blockchain Transfers": {
+            "main": [
+              [
+                {
+                  "node": "Update Database",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Update Database": {
+            "main": [
+              [
+                {
+                  "node": "Success Response",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          }
+        },
+        "pinData": {},
+        "settings": {
+          "executionOrder": "v1"
+        },
+        "staticData": null,
+        "tags": ["crypto", "transfer", "execution", "blockchain"],
+        "triggerCount": 1,
+        "updatedAt": "2025-01-01T00:00:00.000Z",
+        "versionId": "1"
+      }
+    },
+    {
+      "workflow_name": "Beneficiary Crypto Notification System",
+      "description": "Notify beneficiaries when crypto inheritance transfers are completed",
+      "trigger": "webhook",
+      "workflow_json": {
+        "name": "Beneficiary Crypto Notification System",
+        "nodes": [
+          {
+            "parameters": {
+              "httpMethod": "POST",
+              "path": "crypto-beneficiary-notify",
+              "responseMode": "responseNode",
+              "options": {}
+            },
+            "id": "webhook-trigger",
+            "name": "Notification Webhook",
+            "type": "n8n-nodes-base.webhook",
+            "typeVersion": 1,
+            "position": [240, 300],
+            "webhookId": "crypto-beneficiary-notify"
+          },
+          {
+            "parameters": {
+              "jsCode": "// Process beneficiary notification data\nconst notificationData = $input.first().json;\nconst executionSummary = notificationData.execution_summary;\nconst transferResults = executionSummary.transfer_results;\n\n// Create individual notifications for each beneficiary\nconst notifications = transferResults.map(transfer => {\n  const isSuccessful = transfer.status === 'completed';\n  \n  return {\n    beneficiary_name: transfer.beneficiary_name,\n    wallet_address: transfer.wallet_address,\n    transfer_amount: transfer.transfer_amount,\n    allocation_percentage: transfer.allocation_percentage,\n    transaction_hash: transfer.transaction_hash,\n    status: transfer.status,\n    network: executionSummary.network,\n    execution_id: executionSummary.execution_id,\n    notification_type: isSuccessful ? 'inheritance_received' : 'inheritance_failed',\n    notification_title: isSuccessful ? \n      'Crypto Inheritance Received' : \n      'Crypto Inheritance Transfer Failed',\n    notification_message: isSuccessful ?\n      `You have received ${transfer.transfer_amount.toFixed(6)} crypto tokens (${transfer.allocation_percentage}% allocation) from an inheritance plan. Transaction: ${transfer.transaction_hash}` :\n      `Your crypto inheritance transfer failed. Please contact support. Error: ${transfer.error_message}`,\n    urgency: isSuccessful ? 'high' : 'critical',\n    blockchain_explorer_url: `https://etherscan.io/tx/${transfer.transaction_hash}`,\n    next_steps: isSuccessful ? [\n      'Check your wallet for the received tokens',\n      'Verify the transaction on the blockchain explorer',\n      'Contact the estate executor if you have questions'\n    ] : [\n      'Contact LastWish support immediately',\n      'Provide the execution ID for assistance',\n      'Monitor for retry attempts'\n    ],\n    timestamp: new Date().toISOString()\n  };\n});\n\nreturn notifications.map(notification => ({ json: notification }));"
+            },
+            "id": "process-notifications",
+            "name": "Process Beneficiary Notifications",
+            "type": "n8n-nodes-base.code",
+            "typeVersion": 2,
+            "position": [460, 300]
+          },
+          {
+            "parameters": {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
+                "conditions": [
+                  {
+                    "id": "is-successful",
+                    "leftValue": "={{ $json.status }}",
+                    "rightValue": "completed",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "options": {}
+            },
+            "id": "success-branch",
+            "name": "Success Branch",
+            "type": "n8n-nodes-base.if",
+            "typeVersion": 2,
+            "position": [680, 300]
+          },
+          {
+            "parameters": {
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "sendGridApi",
+              "fromEmail": "noreply@lastwish.com",
+              "toEmail": "={{ $json.beneficiary_email || 'support@lastwish.com' }}",
+              "subject": "{{ $json.notification_title }}",
+              "message": "Dear {{ $json.beneficiary_name }},\\n\\n{{ $json.notification_message }}\\n\\nTransaction Details:\\n- Amount: {{ $json.transfer_amount }} tokens\\n- Network: {{ $json.network }}\\n- Transaction Hash: {{ $json.transaction_hash }}\\n- Blockchain Explorer: {{ $json.blockchain_explorer_url }}\\n\\nNext Steps:\\n{{ $json.next_steps.join('\\n- ') }}\\n\\nIf you have any questions, please contact our support team.\\n\\nBest regards,\\nLastWish Estate Planning Team",
+              "options": {}
+            },
+            "id": "send-success-email",
+            "name": "Send Success Email",
+            "type": "n8n-nodes-base.sendGrid",
+            "typeVersion": 1,
+            "position": [900, 200]
+          },
+          {
+            "parameters": {
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "sendGridApi",
+              "fromEmail": "urgent@lastwish.com",
+              "toEmail": "={{ $json.beneficiary_email || 'support@lastwish.com' }}",
+              "subject": "URGENT: {{ $json.notification_title }}",
+              "message": "Dear {{ $json.beneficiary_name }},\\n\\n{{ $json.notification_message }}\\n\\nExecution ID: {{ $json.execution_id }}\\nNetwork: {{ $json.network }}\\nError Details: {{ $json.error_message }}\\n\\nImmediate Actions Required:\\n{{ $json.next_steps.join('\\n- ') }}\\n\\nPlease contact our support team immediately at support@lastwish.com\\n\\nUrgent regards,\\nLastWish Estate Planning Team",
+              "options": {}
+            },
+            "id": "send-failure-email",
+            "name": "Send Failure Email",
+            "type": "n8n-nodes-base.sendGrid",
+            "typeVersion": 1,
+            "position": [900, 400]
+          },
+          {
+            "parameters": {
+              "url": "={{ $vars.LASTWISH_API_URL }}/api/notifications/log",
+              "authentication": "predefinedCredentialType",
+              "nodeCredentialType": "httpHeaderAuth",
+              "sendHeaders": true,
+              "headerParameters": {
+                "parameters": [
+                  {
+                    "name": "Content-Type",
+                    "value": "application/json"
+                  },
+                  {
+                    "name": "Authorization",
+                    "value": "Bearer {{ $vars.LASTWISH_API_TOKEN }}"
+                  }
+                ]
+              },
+              "sendBody": true,
+              "bodyParameters": {
+                "parameters": [
+                  {
+                    "name": "notification_data",
+                    "value": "={{ $json }}"
+                  },
+                  {
+                    "name": "notification_sent",
+                    "value": true
+                  },
+                  {
+                    "name": "timestamp",
+                    "value": "={{ new Date().toISOString() }}"
+                  }
+                ]
+              },
+              "options": {}
+            },
+            "id": "log-notification",
+            "name": "Log Notification",
+            "type": "n8n-nodes-base.httpRequest",
+            "typeVersion": 4.2,
+            "position": [1120, 300]
+          },
+          {
+            "parameters": {
+              "respondWith": "json",
+              "responseBody": "{{ { \"success\": true, \"notifications_sent\": $input.all().length, \"timestamp\": new Date().toISOString() } }}"
+            },
+            "id": "success-response",
+            "name": "Success Response",
+            "type": "n8n-nodes-base.respondToWebhook",
+            "typeVersion": 1,
+            "position": [1340, 300]
+          }
+        ],
+        "connections": {
+          "Notification Webhook": {
+            "main": [
+              [
+                {
+                  "node": "Process Beneficiary Notifications",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Process Beneficiary Notifications": {
+            "main": [
+              [
+                {
+                  "node": "Success Branch",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Success Branch": {
+            "main": [
+              [
+                {
+                  "node": "Send Failure Email",
+                  "type": "main",
+                  "index": 0
+                }
+              ],
+              [
+                {
+                  "node": "Send Success Email",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Send Success Email": {
+            "main": [
+              [
+                {
+                  "node": "Log Notification",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Send Failure Email": {
+            "main": [
+              [
+                {
+                  "node": "Log Notification",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          },
+          "Log Notification": {
+            "main": [
+              [
+                {
+                  "node": "Success Response",
+                  "type": "main",
+                  "index": 0
+                }
+              ]
+            ]
+          }
+        },
+        "pinData": {},
+        "settings": {
+          "executionOrder": "v1"
+        },
+        "staticData": null,
+        "tags": ["crypto", "notifications", "beneficiaries", "inheritance"],
+        "triggerCount": 1,
+        "updatedAt": "2025-01-01T00:00:00.000Z",
+        "versionId": "1"
+      }
+    }
+  ],
+  "implementation_guide": {
+    "setup_instructions": [
+      "Import all 4 workflows into your n8n instance",
+      "Configure environment variables for API endpoints and tokens",
+      "Set up webhook URLs in your LastWish backend",
+      "Configure email credentials for SendGrid notifications",
+      "Test each workflow individually before enabling automation",
+      "Set up monitoring and logging for production use"
+    ],
+    "required_environment_variables": {
+      "LASTWISH_API_URL": "Your LastWish backend API URL",
+      "LASTWISH_API_TOKEN": "API authentication token",
+      "BLOCKCHAIN_API_URL": "Blockchain service API URL",
+      "BLOCKCHAIN_API_TOKEN": "Blockchain API authentication token"
+    },
+    "webhook_endpoints": [
+      "/webhook/smart-contract-deploy - Smart contract deployment trigger",
+      "/webhook/crypto-transfer-execute - Transfer execution trigger",
+      "/webhook/crypto-beneficiary-notify - Beneficiary notification trigger"
+    ],
+    "monitoring_recommendations": [
+      "Set up alerts for failed smart contract deployments",
+      "Monitor transfer execution success rates",
+      "Track beneficiary notification delivery",
+      "Log all blockchain interactions for audit trails",
+      "Set up dashboard for inheritance plan status monitoring"
+    ]
+  }
+}
+

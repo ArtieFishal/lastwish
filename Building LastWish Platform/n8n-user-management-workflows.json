@@ -1,0 +1,458 @@
+{
+  "workflows": [
+    {
+      "name": "User Onboarding Automation",
+      "description": "Automates the complete user onboarding process with personalized guidance and progressive estate planning education",
+      "trigger": "webhook",
+      "webhook_path": "/webhook/user-registered",
+      "nodes": [
+        {
+          "id": "user_registration_webhook",
+          "name": "User Registration Webhook",
+          "type": "n8n-nodes-base.webhook",
+          "parameters": {
+            "path": "user-registered",
+            "httpMethod": "POST",
+            "responseMode": "responseNode"
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "extract_user_profile",
+          "name": "Extract User Profile",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Extract and analyze user profile for personalized onboarding\nconst userData = $json;\n\nconst userProfile = {\n  id: userData.user_id,\n  email: userData.email,\n  name: userData.name || 'New User',\n  age: userData.age || null,\n  state: userData.state || 'Unknown',\n  marital_status: userData.marital_status || 'Unknown',\n  has_children: userData.has_children || false,\n  estimated_assets: userData.estimated_assets || 'Unknown',\n  primary_goals: userData.primary_goals || [],\n  experience_level: userData.experience_level || 'beginner',\n  registration_date: new Date().toISOString(),\n  onboarding_stage: 'welcome'\n};\n\n// Determine onboarding path based on profile\nlet onboardingPath = 'standard';\nif (userProfile.experience_level === 'advanced') {\n  onboardingPath = 'advanced';\n} else if (userProfile.has_children && userProfile.marital_status === 'married') {\n  onboardingPath = 'family_focused';\n} else if (userProfile.estimated_assets === 'high') {\n  onboardingPath = 'high_net_worth';\n}\n\nreturn {\n  user_profile: userProfile,\n  onboarding_path: onboardingPath,\n  personalization_data: {\n    recommended_first_steps: [],\n    priority_areas: [],\n    educational_content: []\n  }\n};"
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "nlweb_personalization",
+          "name": "NLWeb Personalization",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/personalize",
+            "method": "POST",
+            "headers": {
+              "Content-Type": "application/json",
+              "Authorization": "Bearer {{$env.NLWEB_API_KEY}}"
+            },
+            "body": {
+              "query": "Create a personalized estate planning onboarding experience for this user. Provide: 1) Customized welcome message, 2) Recommended first steps, 3) Priority planning areas, 4) Educational content sequence, 5) Timeline suggestions.",
+              "user_profile": "{{$json.user_profile}}",
+              "onboarding_path": "{{$json.onboarding_path}}",
+              "context": "estate_planning_onboarding",
+              "format": "personalized_onboarding_plan"
+            }
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "send_welcome_email",
+          "name": "Send Welcome Email",
+          "type": "n8n-nodes-base.emailSend",
+          "parameters": {
+            "fromEmail": "welcome@lastwish.com",
+            "toEmail": "{{$node['extract_user_profile'].json.user_profile.email}}",
+            "subject": "Welcome to LastWish - Your Estate Planning Journey Begins",
+            "message": "{{$json.personalized_welcome_message}}\\n\\nYour Personalized Next Steps:\\n{{$json.recommended_first_steps}}\\n\\nWe're here to guide you through every step of securing your legacy.\\n\\nBest regards,\\nThe LastWish Team"
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "create_onboarding_schedule",
+          "name": "Create Onboarding Schedule",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/users/onboarding-schedule",
+            "method": "POST",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}",
+              "Content-Type": "application/json"
+            },
+            "body": {
+              "user_id": "{{$node['extract_user_profile'].json.user_profile.id}}",
+              "onboarding_plan": "{{$json.onboarding_plan}}",
+              "schedule": "{{$json.timeline_suggestions}}",
+              "personalization": "{{$json.personalization_data}}"
+            }
+          },
+          "position": [700, 300]
+        },
+        {
+          "id": "webhook_response",
+          "name": "Webhook Response",
+          "type": "n8n-nodes-base.respondToWebhook",
+          "parameters": {
+            "options": {},
+            "responseBody": "{\"status\": \"success\", \"message\": \"User onboarding initiated\", \"onboarding_id\": \"{{$node['create_onboarding_schedule'].json.onboarding_id}}\"}"
+          },
+          "position": [900, 200]
+        }
+      ],
+      "connections": {
+        "user_registration_webhook": {
+          "main": [["extract_user_profile"]]
+        },
+        "extract_user_profile": {
+          "main": [["nlweb_personalization"]]
+        },
+        "nlweb_personalization": {
+          "main": [["send_welcome_email", "create_onboarding_schedule"]]
+        },
+        "send_welcome_email": {
+          "main": [["webhook_response"]]
+        },
+        "create_onboarding_schedule": {
+          "main": [["webhook_response"]]
+        }
+      }
+    },
+    {
+      "name": "Progressive Engagement System",
+      "description": "Sends personalized, progressive estate planning guidance based on user progress and engagement",
+      "trigger": "schedule",
+      "frequency": "daily",
+      "nodes": [
+        {
+          "id": "daily_engagement_check",
+          "name": "Daily Engagement Check",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "hour": 9,
+              "minute": 0,
+              "timezone": "America/New_York"
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "fetch_user_progress",
+          "name": "Fetch User Progress",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/users/progress-analysis",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "analyze_engagement_patterns",
+          "name": "Analyze Engagement Patterns",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Analyze user engagement patterns and determine next actions\nconst users = $json.users || [];\nconst engagementAnalysis = [];\n\nfor (const user of users) {\n  const daysSinceRegistration = Math.floor(\n    (new Date() - new Date(user.registration_date)) / (1000 * 60 * 60 * 24)\n  );\n  \n  const daysSinceLastActivity = Math.floor(\n    (new Date() - new Date(user.last_activity)) / (1000 * 60 * 60 * 24)\n  );\n  \n  let engagementStatus = 'active';\n  let recommendedAction = 'continue';\n  let priority = 'low';\n  \n  // Determine engagement status\n  if (daysSinceLastActivity > 14) {\n    engagementStatus = 'dormant';\n    recommendedAction = 'reactivation_campaign';\n    priority = 'high';\n  } else if (daysSinceLastActivity > 7) {\n    engagementStatus = 'declining';\n    recommendedAction = 'gentle_reminder';\n    priority = 'medium';\n  } else if (user.completion_percentage < 25 && daysSinceRegistration > 7) {\n    engagementStatus = 'stalled';\n    recommendedAction = 'motivation_boost';\n    priority = 'medium';\n  }\n  \n  // Determine next best action based on progress\n  let nextAction = 'general_encouragement';\n  if (user.completion_percentage === 0) {\n    nextAction = 'getting_started_guide';\n  } else if (user.completion_percentage < 50) {\n    nextAction = 'progress_milestone_celebration';\n  } else if (user.completion_percentage < 100) {\n    nextAction = 'completion_encouragement';\n  } else {\n    nextAction = 'maintenance_reminder';\n  }\n  \n  engagementAnalysis.push({\n    user_id: user.id,\n    email: user.email,\n    name: user.name,\n    engagement_status: engagementStatus,\n    recommended_action: recommendedAction,\n    next_action: nextAction,\n    priority: priority,\n    completion_percentage: user.completion_percentage,\n    days_since_registration: daysSinceRegistration,\n    days_since_last_activity: daysSinceLastActivity,\n    current_stage: user.current_stage,\n    blocked_areas: user.blocked_areas || []\n  });\n}\n\nreturn {\n  engagement_analysis: engagementAnalysis,\n  summary: {\n    total_users: users.length,\n    active_users: engagementAnalysis.filter(u => u.engagement_status === 'active').length,\n    declining_users: engagementAnalysis.filter(u => u.engagement_status === 'declining').length,\n    dormant_users: engagementAnalysis.filter(u => u.engagement_status === 'dormant').length,\n    stalled_users: engagementAnalysis.filter(u => u.engagement_status === 'stalled').length\n  },\n  high_priority_users: engagementAnalysis.filter(u => u.priority === 'high'),\n  analysis_date: new Date().toISOString()\n};"
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "nlweb_personalized_messaging",
+          "name": "NLWeb Personalized Messaging",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/generate-messages",
+            "method": "POST",
+            "body": {
+              "query": "Generate personalized estate planning messages for these users based on their engagement status and progress. For each user, create: 1) Personalized subject line, 2) Encouraging message content, 3) Specific next steps, 4) Relevant educational resources.",
+              "users": "{{$json.engagement_analysis}}",
+              "message_types": ["encouragement", "reminder", "education", "milestone_celebration"],
+              "context": "estate_planning_engagement",
+              "format": "personalized_messages"
+            }
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "send_personalized_emails",
+          "name": "Send Personalized Emails",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Send personalized emails to users based on their engagement status\nconst messages = $json.personalized_messages || [];\nconst emailResults = [];\n\nfor (const message of messages) {\n  try {\n    // This would be replaced with actual email sending logic\n    const emailResult = {\n      user_id: message.user_id,\n      email: message.email,\n      subject: message.subject,\n      message_type: message.message_type,\n      sent: true,\n      sent_at: new Date().toISOString()\n    };\n    \n    emailResults.push(emailResult);\n  } catch (error) {\n    emailResults.push({\n      user_id: message.user_id,\n      email: message.email,\n      sent: false,\n      error: error.message\n    });\n  }\n}\n\nreturn {\n  email_results: emailResults,\n  summary: {\n    total_sent: emailResults.filter(r => r.sent).length,\n    failed: emailResults.filter(r => !r.sent).length\n  }\n};"
+          },
+          "position": [900, 100]
+        },
+        {
+          "id": "update_user_engagement",
+          "name": "Update User Engagement",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/users/engagement-update",
+            "method": "POST",
+            "body": {
+              "engagement_data": "{{$node['analyze_engagement_patterns'].json.engagement_analysis}}",
+              "email_results": "{{$json.email_results}}",
+              "timestamp": "{{new Date().toISOString()}}"
+            }
+          },
+          "position": [1100, 100]
+        }
+      ],
+      "connections": {
+        "daily_engagement_check": {
+          "main": [["fetch_user_progress"]]
+        },
+        "fetch_user_progress": {
+          "main": [["analyze_engagement_patterns"]]
+        },
+        "analyze_engagement_patterns": {
+          "main": [["nlweb_personalized_messaging"]]
+        },
+        "nlweb_personalized_messaging": {
+          "main": [["send_personalized_emails"]]
+        },
+        "send_personalized_emails": {
+          "main": [["update_user_engagement"]]
+        }
+      }
+    },
+    {
+      "name": "Estate Planning Reminders",
+      "description": "Sends intelligent reminders for estate planning tasks, document updates, and annual reviews",
+      "trigger": "schedule",
+      "frequency": "daily",
+      "nodes": [
+        {
+          "id": "reminder_check_trigger",
+          "name": "Reminder Check Trigger",
+          "type": "n8n-nodes-base.cron",
+          "parameters": {
+            "rule": {
+              "hour": 8,
+              "minute": 30,
+              "timezone": "America/New_York"
+            }
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "fetch_reminder_candidates",
+          "name": "Fetch Reminder Candidates",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/reminders/candidates",
+            "method": "GET",
+            "headers": {
+              "Authorization": "Bearer {{$env.LASTWISH_API_KEY}}"
+            }
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "analyze_reminder_needs",
+          "name": "Analyze Reminder Needs",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Analyze users who need estate planning reminders\nconst users = $json.users || [];\nconst reminderNeeds = [];\n\nfor (const user of users) {\n  const reminders = [];\n  const now = new Date();\n  \n  // Check for annual review reminders\n  if (user.last_will_update) {\n    const lastUpdate = new Date(user.last_will_update);\n    const monthsSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60 * 24 * 30);\n    \n    if (monthsSinceUpdate >= 12) {\n      reminders.push({\n        type: 'annual_review',\n        priority: 'high',\n        message: 'Time for your annual estate plan review',\n        action_required: 'Review and update your will and estate plan',\n        deadline: new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000) // 30 days\n      });\n    }\n  }\n  \n  // Check for incomplete documents\n  if (user.incomplete_documents && user.incomplete_documents.length > 0) {\n    reminders.push({\n      type: 'incomplete_documents',\n      priority: 'medium',\n      message: `You have ${user.incomplete_documents.length} incomplete documents`,\n      action_required: 'Complete your estate planning documents',\n      documents: user.incomplete_documents\n    });\n  }\n  \n  // Check for beneficiary updates\n  if (user.beneficiaries_last_reviewed) {\n    const lastReview = new Date(user.beneficiaries_last_reviewed);\n    const monthsSinceReview = (now - lastReview) / (1000 * 60 * 60 * 24 * 30);\n    \n    if (monthsSinceReview >= 6) {\n      reminders.push({\n        type: 'beneficiary_review',\n        priority: 'medium',\n        message: 'Time to review your beneficiaries',\n        action_required: 'Review and update beneficiary information'\n      });\n    }\n  }\n  \n  // Check for digital asset updates\n  if (user.digital_assets_last_updated) {\n    const lastUpdate = new Date(user.digital_assets_last_updated);\n    const monthsSinceUpdate = (now - lastUpdate) / (1000 * 60 * 60 * 24 * 30);\n    \n    if (monthsSinceUpdate >= 3) {\n      reminders.push({\n        type: 'digital_assets',\n        priority: 'low',\n        message: 'Update your digital asset inventory',\n        action_required: 'Review and update digital asset information'\n      });\n    }\n  }\n  \n  // Check for life event triggers\n  if (user.recent_life_events && user.recent_life_events.length > 0) {\n    for (const event of user.recent_life_events) {\n      if (!event.estate_plan_updated) {\n        reminders.push({\n          type: 'life_event_update',\n          priority: 'high',\n          message: `Update your estate plan for recent ${event.type}`,\n          action_required: `Review estate plan due to ${event.type}`,\n          life_event: event\n        });\n      }\n    }\n  }\n  \n  if (reminders.length > 0) {\n    reminderNeeds.push({\n      user_id: user.id,\n      email: user.email,\n      name: user.name,\n      reminders: reminders,\n      highest_priority: reminders.reduce((max, r) => \n        r.priority === 'high' ? 'high' : \n        (r.priority === 'medium' && max !== 'high') ? 'medium' : max, 'low'\n      )\n    });\n  }\n}\n\nreturn {\n  reminder_needs: reminderNeeds,\n  summary: {\n    total_users_needing_reminders: reminderNeeds.length,\n    high_priority: reminderNeeds.filter(u => u.highest_priority === 'high').length,\n    medium_priority: reminderNeeds.filter(u => u.highest_priority === 'medium').length,\n    low_priority: reminderNeeds.filter(u => u.highest_priority === 'low').length\n  }\n};"
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "nlweb_reminder_generation",
+          "name": "NLWeb Reminder Generation",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/generate-reminders",
+            "method": "POST",
+            "body": {
+              "query": "Generate personalized estate planning reminders for these users. For each reminder, create: 1) Compelling subject line, 2) Personalized message explaining importance, 3) Clear action steps, 4) Helpful resources or links, 5) Appropriate urgency level.",
+              "reminder_data": "{{$json.reminder_needs}}",
+              "context": "estate_planning_reminders",
+              "format": "personalized_reminders"
+            }
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "send_reminder_emails",
+          "name": "Send Reminder Emails",
+          "type": "n8n-nodes-base.emailSend",
+          "parameters": {
+            "fromEmail": "reminders@lastwish.com",
+            "toEmail": "{{$json.email}}",
+            "subject": "{{$json.subject}}",
+            "message": "{{$json.message_content}}"
+          },
+          "position": [900, 100]
+        },
+        {
+          "id": "track_reminder_delivery",
+          "name": "Track Reminder Delivery",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/reminders/track",
+            "method": "POST",
+            "body": {
+              "reminder_deliveries": "{{$json}}",
+              "delivery_timestamp": "{{new Date().toISOString()}}"
+            }
+          },
+          "position": [1100, 100]
+        }
+      ],
+      "connections": {
+        "reminder_check_trigger": {
+          "main": [["fetch_reminder_candidates"]]
+        },
+        "fetch_reminder_candidates": {
+          "main": [["analyze_reminder_needs"]]
+        },
+        "analyze_reminder_needs": {
+          "main": [["nlweb_reminder_generation"]]
+        },
+        "nlweb_reminder_generation": {
+          "main": [["send_reminder_emails"]]
+        },
+        "send_reminder_emails": {
+          "main": [["track_reminder_delivery"]]
+        }
+      }
+    },
+    {
+      "name": "User Support Automation",
+      "description": "Provides automated support responses and escalates complex issues to human agents",
+      "trigger": "webhook",
+      "webhook_path": "/webhook/support-request",
+      "nodes": [
+        {
+          "id": "support_request_webhook",
+          "name": "Support Request Webhook",
+          "type": "n8n-nodes-base.webhook",
+          "parameters": {
+            "path": "support-request",
+            "httpMethod": "POST",
+            "responseMode": "responseNode"
+          },
+          "position": [100, 100]
+        },
+        {
+          "id": "analyze_support_request",
+          "name": "Analyze Support Request",
+          "type": "n8n-nodes-base.code",
+          "parameters": {
+            "jsCode": "// Analyze support request and categorize\nconst request = $json;\n\nconst analysis = {\n  user_id: request.user_id,\n  email: request.email,\n  subject: request.subject,\n  message: request.message,\n  category: 'general',\n  priority: 'medium',\n  complexity: 'simple',\n  can_auto_respond: false,\n  requires_human: false,\n  sentiment: 'neutral'\n};\n\n// Categorize the request\nconst message = request.message.toLowerCase();\nif (message.includes('legal') || message.includes('law') || message.includes('attorney')) {\n  analysis.category = 'legal';\n  analysis.requires_human = true;\n  analysis.priority = 'high';\n} else if (message.includes('password') || message.includes('login') || message.includes('access')) {\n  analysis.category = 'technical';\n  analysis.can_auto_respond = true;\n} else if (message.includes('billing') || message.includes('payment') || message.includes('refund')) {\n  analysis.category = 'billing';\n  analysis.priority = 'high';\n} else if (message.includes('how to') || message.includes('help') || message.includes('guide')) {\n  analysis.category = 'educational';\n  analysis.can_auto_respond = true;\n}\n\n// Determine sentiment\nif (message.includes('angry') || message.includes('frustrated') || message.includes('terrible')) {\n  analysis.sentiment = 'negative';\n  analysis.priority = 'high';\n} else if (message.includes('thank') || message.includes('great') || message.includes('love')) {\n  analysis.sentiment = 'positive';\n}\n\n// Determine complexity\nif (message.length > 500 || message.includes('complex') || message.includes('multiple')) {\n  analysis.complexity = 'complex';\n  analysis.requires_human = true;\n}\n\nreturn {\n  request_analysis: analysis,\n  timestamp: new Date().toISOString()\n};"
+          },
+          "position": [300, 100]
+        },
+        {
+          "id": "nlweb_support_response",
+          "name": "NLWeb Support Response",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "http://nlweb:8080/api/support-response",
+            "method": "POST",
+            "body": {
+              "query": "Generate an appropriate support response for this estate planning inquiry. Provide: 1) Empathetic acknowledgment, 2) Helpful information or solution, 3) Next steps if applicable, 4) Additional resources, 5) Escalation recommendation if needed.",
+              "request": "{{$json.request_analysis}}",
+              "context": "estate_planning_support",
+              "format": "support_response"
+            }
+          },
+          "position": [500, 100]
+        },
+        {
+          "id": "route_response",
+          "name": "Route Response",
+          "type": "n8n-nodes-base.if",
+          "parameters": {
+            "conditions": {
+              "string": [
+                {
+                  "value1": "{{$node['analyze_support_request'].json.request_analysis.requires_human}}",
+                  "value2": "true"
+                }
+              ]
+            }
+          },
+          "position": [700, 100]
+        },
+        {
+          "id": "send_auto_response",
+          "name": "Send Auto Response",
+          "type": "n8n-nodes-base.emailSend",
+          "parameters": {
+            "fromEmail": "support@lastwish.com",
+            "toEmail": "{{$node['analyze_support_request'].json.request_analysis.email}}",
+            "subject": "Re: {{$node['analyze_support_request'].json.request_analysis.subject}}",
+            "message": "{{$json.response_content}}"
+          },
+          "position": [900, 50]
+        },
+        {
+          "id": "escalate_to_human",
+          "name": "Escalate to Human",
+          "type": "n8n-nodes-base.httpRequest",
+          "parameters": {
+            "url": "https://zmhqivcvewj6.manus.space/api/support/escalate",
+            "method": "POST",
+            "body": {
+              "request": "{{$node['analyze_support_request'].json.request_analysis}}",
+              "ai_response": "{{$json.response_content}}",
+              "escalation_reason": "{{$json.escalation_reason}}",
+              "priority": "{{$node['analyze_support_request'].json.request_analysis.priority}}"
+            }
+          },
+          "position": [900, 150]
+        },
+        {
+          "id": "webhook_response",
+          "name": "Webhook Response",
+          "type": "n8n-nodes-base.respondToWebhook",
+          "parameters": {
+            "responseBody": "{\"status\": \"processed\", \"ticket_id\": \"{{$json.ticket_id || 'auto-' + Date.now()}}\", \"response_type\": \"{{$node['analyze_support_request'].json.request_analysis.requires_human ? 'escalated' : 'automated'}}\"}"
+          },
+          "position": [1100, 100]
+        }
+      ],
+      "connections": {
+        "support_request_webhook": {
+          "main": [["analyze_support_request"]]
+        },
+        "analyze_support_request": {
+          "main": [["nlweb_support_response"]]
+        },
+        "nlweb_support_response": {
+          "main": [["route_response"]]
+        },
+        "route_response": {
+          "main": [
+            ["send_auto_response"],
+            ["escalate_to_human"]
+          ]
+        },
+        "send_auto_response": {
+          "main": [["webhook_response"]]
+        },
+        "escalate_to_human": {
+          "main": [["webhook_response"]]
+        }
+      }
+    }
+  ],
+  "deployment_configuration": {
+    "webhook_endpoints": [
+      "/webhook/user-registered",
+      "/webhook/support-request"
+    ],
+    "environment_variables": [
+      "NLWEB_API_KEY",
+      "LASTWISH_API_KEY",
+      "EMAIL_SERVICE_CONFIG"
+    ],
+    "monitoring": {
+      "onboarding_completion_rate": "> 80%",
+      "engagement_improvement_rate": "> 15%",
+      "support_auto_resolution_rate": "> 60%",
+      "user_satisfaction_score": "> 4.5/5"
+    },
+    "scheduling": {
+      "engagement_analysis": "daily",
+      "reminder_checks": "daily",
+      "onboarding_follow_ups": "triggered"
+    }
+  }
+}
+

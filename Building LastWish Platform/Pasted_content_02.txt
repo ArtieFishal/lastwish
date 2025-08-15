@@ -1,0 +1,99 @@
+Here’s a high‑level overview of WalletConnect and exactly how to wire it up in your browser so users can scan a QR (or click a deep‑link) and connect their wallets:
+
+What is WalletConnect?
+WalletConnect is an open protocol for secure, peer‑to‑peer communication between your web‑app (a “dApp”) and a user’s wallet. It works by relaying encrypted JSON‑RPC messages over a bridge server—and it can present either a QR code (for desktop) or a deep‑link (for mobile) to your users. (Medium)
+
+v1 vs. v2 at a glance
+	•	v1 uses the legacy @walletconnect/browser (or @walletconnect/web3-provider) plus a QR‑modal like @walletconnect/qrcode-modal.
+	•	v2 is modular: you use @walletconnect/universal-provider (the core protocol), a UI package @walletconnect/modal (or the newer Web3Modal), and optionally @walletconnect/sign-client for low‑level control. v2 adds first‑class multi‑chain support. (docs.reown.com, npm)
+
+1. Get your Project ID
+	1.	Go to the WalletConnect Cloud Registry and register an application.
+	2.	Copy your projectId—you’ll need it for v2. (docs.reown.com)
+
+2. Install the SDK(s)
+A) v1 (basic, but limited to one chain per session)
+npm install @walletconnect/browser @walletconnect/qrcode-modal web3
+(Ethereum Stack Exchange)
+B) v2 (recommended)
+npm install @walletconnect/universal-provider @walletconnect/modal ethers
+(docs.reown.com, npm)
+
+3. Integration Examples
+A) Version 1 (Vanilla JS + Web3)
+<script src="https://cdnjs.cloudflare.com/ajax/libs/web3/3.0.0-rc.5/web3.min.js"></script>
+<script src="https://unpkg.com/@walletconnect/[email protected]/dist/umd/index.min.js"></script>
+<script>
+  // 1. Create the provider (requires an Infura ID or your own RPC)
+  const provider = new WalletConnectProvider.default({
+    infuraId: "YOUR_INFURA_ID",
+    rpc: { 56: "https://bsc-dataseed.binance.org/" }
+  });
+
+  // 2. Show QR and await approval
+  provider.enable().then(() => {
+    // 3. Wrap with Web3 and go!
+    const web3 = new Web3(provider);
+    web3.eth.getAccounts().then(console.log);
+  });
+</script>
+(Ethereum Stack Exchange)
+
+B) Version 2 (UniversalProvider + Modal)
+import UniversalProvider from "@walletconnect/universal-provider";
+import { Modal }             from "@walletconnect/modal";
+import { ethers }            from "ethers";
+
+(async () => {
+  // 1. Init the core provider
+  const provider = await UniversalProvider.init({
+    projectId: "YOUR_PROJECT_ID",               // from WalletConnect Cloud
+    metadata: {
+      name:        "My DApp",
+      description: "My site description",
+      url:         "https://yourdapp.com",
+      icons:       ["https://yourdapp.com/icon.png"],
+    },
+  });
+
+  // 2. Hook the QR / deep‑link UI
+  provider.on("display_uri", (uri) => {
+    // opens a modal with QR + deep‑link for mobile
+    Modal.open({ uri });
+  });
+
+  // 3. Connect with chain namespaces (you can add more: solana, cosmos, etc.)
+  await provider.connect({
+    namespaces: {
+      eip155: {
+        methods: ["eth_sendTransaction","personal_sign"],
+        chains:  ["eip155:1"],                // Ethereum Mainnet
+        events:  ["chainChanged","accountsChanged"],
+        rpcMap:  {
+          1: "https://rpc.walletconnect.org?chainId=eip155:1&projectId=YOUR_PROJECT_ID"
+        },
+      },
+    },
+  });
+
+  // 4. You’re live—grab accounts, send txs, sign messages…
+  console.log("Connected accounts:", provider.accounts);
+  const signer = new ethers.providers.Web3Provider(provider).getSigner();
+  // e.g. await signer.sendTransaction({...})
+})();
+(npm, npm)
+
+4. Bootstrapping in the Browser
+If you don’t want a bundler, grab the UMD builds from UNPKG/jsDelivr:
+<script src="https://unpkg.com/@walletconnect/universal-provider@2.21.5/dist/umd/index.min.js"></script>
+<script src="https://unpkg.com/@walletconnect/modal@2.7.0/dist/index.min.js"></script>
+Then refer to window.WalletConnectUniversalProvider and window.WalletConnectModal. (npm, npm)
+
+5. Next Steps & Tips
+	•	Session Persistence: Save provider.session (e.g. in localStorage) so users stay connected on reload.
+	•	Event Handling: provider.on("session_update", ({ namespaces }) => { /* ... */ });
+	•	provider.on("disconnect",        () => { /* ... */ });
+	•	
+	•	Multi‑Chain: Add more namespaces under connect()—for Solana use "solana:4" etc. (docs.reown.com)
+	•	Error Handling: Wrap connect() in try/catch to catch user rejections or network errors.
+With that in place, visitors to your site can click “Connect Wallet”, scan the QR (or deep‑link), and your dApp can read their address, send transactions, and sign messages—all over WalletConnect’s secure, encrypted channel. Let me know if you’d like detailed walk‑throughs for specific chains (Solana, Sui, XRP, etc.)!

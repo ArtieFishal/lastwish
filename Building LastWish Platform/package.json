@@ -1,0 +1,83 @@
+{
+  "name": "lastwish-eth",
+  "version": "1.0.0",
+  "description": "Web3 Estate Planning Platform - The world's first comprehensive Web3-native estate planning platform",
+  "main": "src/main.py",
+  "scripts": {
+    "install": "npm run install:frontend && npm run install:backend",
+    "install:frontend": "cd lastwish-frontend && npm install",
+    "install:backend": "cd src && pip install -r ../requirements.txt",
+    "dev": "concurrently \"npm run dev:backend\" \"npm run dev:frontend\"",
+    "dev:frontend": "cd lastwish-frontend && npm run dev",
+    "dev:backend": "cd src && python main.py",
+    "build": "npm run build:frontend",
+    "build:frontend": "cd lastwish-frontend && npm run build && cp -r dist/* ../src/static/",
+    "start": "cd src && python main.py",
+    "test": "npm run test:frontend && npm run test:backend",
+    "test:frontend": "cd lastwish-frontend && npm test",
+    "test:backend": "cd src && python -m pytest tests/",
+    "lint": "npm run lint:frontend && npm run lint:backend",
+    "lint:frontend": "cd lastwish-frontend && npm run lint",
+    "lint:backend": "cd src && flake8 .",
+    "format": "npm run format:frontend && npm run format:backend",
+    "format:frontend": "cd lastwish-frontend && npm run format",
+    "format:backend": "cd src && black .",
+    "docker:build": "docker build -t lastwish-eth .",
+    "docker:run": "docker run -p 5000:5000 lastwish-eth",
+    "docker:compose": "docker-compose up -d",
+    "deploy:production": "npm run build && npm run deploy:backend",
+    "deploy:backend": "echo 'Deploy backend to your hosting provider'",
+    "clean": "npm run clean:frontend && npm run clean:backend",
+    "clean:frontend": "cd lastwish-frontend && rm -rf node_modules dist",
+    "clean:backend": "cd src && rm -rf __pycache__ *.pyc",
+    "setup": "npm run install && npm run setup:env",
+    "setup:env": "cp .env.example .env && cp lastwish-frontend/.env.example lastwish-frontend/.env"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/yourusername/lastwish-eth.git"
+  },
+  "keywords": [
+    "web3",
+    "estate-planning",
+    "blockchain",
+    "cryptocurrency",
+    "inheritance",
+    "smart-contracts",
+    "ethereum",
+    "polygon",
+    "bsc",
+    "avalanche",
+    "walletconnect",
+    "ens",
+    "ipfs",
+    "decentralized",
+    "dapp",
+    "defi",
+    "nft",
+    "digital-assets",
+    "will",
+    "beneficiaries",
+    "legal-tech",
+    "fintech"
+  ],
+  "author": "LastWish.eth Team",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/yourusername/lastwish-eth/issues"
+  },
+  "homepage": "https://lastwish.eth",
+  "engines": {
+    "node": ">=18.0.0",
+    "npm": ">=8.0.0",
+    "python": ">=3.11.0"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  },
+  "funding": {
+    "type": "ethereum",
+    "url": "0x742d35Cc6634C0532925a3b8D0C9C2d1234567890"
+  }
+}
+

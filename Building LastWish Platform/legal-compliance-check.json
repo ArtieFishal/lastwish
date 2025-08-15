@@ -1,0 +1,307 @@
+{
+  "name": "LastWish - Legal Compliance Check",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "value": "0 0 9 * * 1"
+            }
+          ]
+        }
+      },
+      "id": "schedule-trigger",
+      "name": "Weekly Compliance Check",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.1,
+      "position": [240, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/users",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "get-all-users",
+      "name": "Get All Users",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [460, 300]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "users",
+        "options": {}
+      },
+      "id": "split-users",
+      "name": "Split Users",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [680, 300]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/n8n/api/legal-compliance-check",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "user_id",
+              "value": "={{ $json.id }}"
+            },
+            {
+              "name": "state",
+              "value": "={{ $json.state }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "check-compliance",
+      "name": "Check User Compliance",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [900, 300]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-issues",
+              "leftValue": "={{ $json.data.issues_found }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-issues",
+      "name": "Check If Issues Found",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [1120, 300]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Prepare compliance report email\nconst complianceData = $input.first().json.data;\nconst userData = $input.first().json; // User data from previous node\n\n// Categorize issues by severity\nconst highSeverityIssues = complianceData.issues.filter(issue => issue.severity === 'high');\nconst mediumSeverityIssues = complianceData.issues.filter(issue => issue.severity === 'medium');\nconst lowSeverityIssues = complianceData.issues.filter(issue => issue.severity === 'low');\n\n// Generate email content\nconst emailSubject = `Estate Planning Compliance Report - ${complianceData.issues_found} Issue(s) Found`;\n\nlet issuesSection = '';\nif (highSeverityIssues.length > 0) {\n  issuesSection += '\\n🔴 HIGH PRIORITY ISSUES:\\n';\n  highSeverityIssues.forEach(issue => {\n    issuesSection += `- ${issue.message}\\n`;\n  });\n}\n\nif (mediumSeverityIssues.length > 0) {\n  issuesSection += '\\n🟡 MEDIUM PRIORITY ISSUES:\\n';\n  mediumSeverityIssues.forEach(issue => {\n    issuesSection += `- ${issue.message}\\n`;\n  });\n}\n\nif (lowSeverityIssues.length > 0) {\n  issuesSection += '\\n🟢 LOW PRIORITY ISSUES:\\n';\n  lowSeverityIssues.forEach(issue => {\n    issuesSection += `- ${issue.message}\\n`;\n  });\n}\n\nconst emailMessage = `Dear ${userData.first_name || 'Valued User'},\n\nWe've completed a compliance review of your estate planning documents and found ${complianceData.issues_found} issue(s) that require your attention.\n\nCOMPLIANCE SCORE: ${complianceData.compliance_score}/100\n\nISSUES IDENTIFIED:${issuesSection}\n\nRECOMMENDATIONS:\n${complianceData.recommendations.map(rec => `• ${rec}`).join('\\n')}\n\nNext Steps:\n1. Log into your LastWish account to review these issues\n2. Update your estate planning documents as needed\n3. Consider consulting with a legal professional for complex matters\n4. Ensure all beneficiaries have current contact information\n\nYour estate planning compliance is important for ensuring your wishes are properly executed. Please address these issues at your earliest convenience.\n\nIf you have questions about any of these issues, please contact our support team.\n\nBest regards,\nThe LastWish Compliance Team\n\nThis is an automated compliance report generated on ${new Date(complianceData.check_date).toLocaleDateString()}.`;\n\nreturn {\n  email: {\n    to: userData.email,\n    subject: emailSubject,\n    message: emailMessage\n  },\n  compliance: complianceData,\n  user: userData,\n  notification_type: 'compliance_report'\n};"
+      },
+      "id": "prepare-compliance-email",
+      "name": "Prepare Compliance Email",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 200]
+    },
+    {
+      "parameters": {
+        "url": "http://localhost:5000/api/n8n/api/send-notification",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "bodyParameters": {
+          "parameters": [
+            {
+              "name": "type",
+              "value": "={{ $json.notification_type }}"
+            },
+            {
+              "name": "recipient_email",
+              "value": "={{ $json.email.to }}"
+            },
+            {
+              "name": "subject",
+              "value": "={{ $json.email.subject }}"
+            },
+            {
+              "name": "message",
+              "value": "={{ $json.email.message }}"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "send-compliance-email",
+      "name": "Send Compliance Email",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.1,
+      "position": [1560, 200]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Log compliant user\nconst complianceData = $input.first().json.data;\nconst userData = $input.first().json;\n\nconsole.log(`User ${userData.email} is compliant with score ${complianceData.compliance_score}/100`);\n\nreturn {\n  status: 'compliant',\n  user: userData,\n  compliance_score: complianceData.compliance_score,\n  message: 'User estate plan is compliant'\n};"
+      },
+      "id": "log-compliant",
+      "name": "Log Compliant User",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1340, 400]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Aggregate compliance results\nconst allResults = $input.all();\n\nconst totalUsers = allResults.length;\nconst usersWithIssues = allResults.filter(result => \n  result.json.compliance && result.json.compliance.issues_found > 0\n).length;\nconst compliantUsers = totalUsers - usersWithIssues;\n\nconst averageScore = allResults.reduce((sum, result) => {\n  const score = result.json.compliance ? result.json.compliance.compliance_score : 100;\n  return sum + score;\n}, 0) / totalUsers;\n\n// Generate summary report\nconst summaryReport = {\n  report_date: new Date().toISOString(),\n  total_users_checked: totalUsers,\n  compliant_users: compliantUsers,\n  users_with_issues: usersWithIssues,\n  average_compliance_score: Math.round(averageScore),\n  compliance_rate: Math.round((compliantUsers / totalUsers) * 100)\n};\n\nconsole.log('Weekly Compliance Check Summary:', summaryReport);\n\nreturn summaryReport;"
+      },
+      "id": "generate-summary",
+      "name": "Generate Summary Report",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [1780, 300]
+    }
+  ],
+  "connections": {
+    "Weekly Compliance Check": {
+      "main": [
+        [
+          {
+            "node": "Get All Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get All Users": {
+      "main": [
+        [
+          {
+            "node": "Split Users",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Users": {
+      "main": [
+        [
+          {
+            "node": "Check User Compliance",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check User Compliance": {
+      "main": [
+        [
+          {
+            "node": "Check If Issues Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Check If Issues Found": {
+      "main": [
+        [
+          {
+            "node": "Prepare Compliance Email",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Log Compliant User",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prepare Compliance Email": {
+      "main": [
+        [
+          {
+            "node": "Send Compliance Email",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Compliance Email": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Log Compliant User": {
+      "main": [
+        [
+          {
+            "node": "Generate Summary Report",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "1",
+  "meta": {
+    "templateCredsSetupCompleted": true
+  },
+  "id": "legal-compliance-check",
+  "tags": [
+    {
+      "createdAt": "2025-01-17T20:00:00.000Z",
+      "updatedAt": "2025-01-17T20:00:00.000Z",
+      "id": "estate-planning",
+      "name": "Estate Planning"
+    },
+    {
+      "createdAt": "2025-01-17T20:00:00.000Z",
+      "updatedAt": "2025-01-17T20:00:00.000Z",
+      "id": "compliance",
+      "name": "Compliance"
+    }
+  ]
+}
+
