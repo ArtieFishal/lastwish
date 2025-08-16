@@ -10,7 +10,7 @@ class Config:
     # Database Configuration
     SQLALCHEMY_DATABASE_URI = os.environ.get('DATABASE_URL') or 'sqlite:///app.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
-    MONGODB_URI = os.environ.get('MONGODB_URI') or 'mongodb://localhost:27017/lastwish'
+    MONGODB_URI = os.environ.get('MONGODB_URI') or 'mongodb://172.17.0.1:27017/lastwish'
     
     # JWT Configuration
     JWT_SECRET_KEY = os.environ.get('JWT_SECRET_KEY') or 'jwt-secret-key-change-in-production'
