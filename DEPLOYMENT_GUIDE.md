@@ -10,31 +10,30 @@
 
 ## Step-by-Step Deployment Instructions
 
-### Option 1: Create New Repository on GitHub (Recommended)
+### Deploy to Existing Repository with New Branch
 
-#### 1. Create GitHub Repository
-1. Go to [github.com](https://github.com) and sign in
-2. Click the **"+"** icon → **"New repository"**
-3. Repository settings:
-   - **Repository name**: `lastwish-eth` (or your preferred name)
-   - **Description**: "LastWish.eth - Decentralized Digital Will Platform"
-   - **Visibility**: Public (recommended for GitHub Pages)
-   - **⚠️ Important**: Do NOT initialize with README, .gitignore, or license (we already have these)
-4. Click **"Create repository"**
+Since you already have a `lastwish` repository, we'll create a new branch for this version:
 
-#### 2. Connect Local Repository to GitHub
+#### 1. Push New Branch to Existing Repository
 ```bash
 # Navigate to the project directory
 cd /home/ubuntu/lastwish-vxndzzgq
 
-# Add GitHub repository as remote origin
-git remote add origin https://github.com/YOUR_USERNAME/lastwish-eth.git
+# The repository is already configured with:
+# - Remote origin pointing to your existing lastwish repository
+# - New branch 'vxndzzgq-demo' created and checked out
 
-# Push to GitHub
-git push -u origin main
+# Push the new branch to GitHub
+git push -u origin vxndzzgq-demo
 ```
 
-**Replace `YOUR_USERNAME` with your actual GitHub username**
+**Replace `YOUR_USERNAME` with your actual GitHub username in the remote URL**
+
+#### 2. Update Remote URL (if needed)
+If your GitHub username is different, update the remote:
+```bash
+git remote set-url origin https://github.com/YOUR_ACTUAL_USERNAME/lastwish.git
+```
 
 ### Option 2: Upload Files Manually
 
@@ -48,32 +47,42 @@ If you prefer not to use Git commands:
    - Drag and drop all project files
    - Commit the files
 
-## GitHub Pages Deployment
+## GitHub Pages Deployment Options
 
-### Automatic Deployment (Recommended)
+### Option 1: Deploy Branch to GitHub Pages
 
-The repository includes a GitHub Actions workflow that automatically deploys to GitHub Pages:
+You can deploy the `vxndzzgq-demo` branch directly to GitHub Pages:
 
-1. **Enable GitHub Pages:**
+1. **Enable GitHub Pages for Branch:**
    - Go to your repository → **Settings** tab
    - Scroll to **"Pages"** section (left sidebar)
-   - Under **"Source"**, select **"GitHub Actions"**
+   - Under **"Source"**, select **"Deploy from a branch"**
+   - Choose **"vxndzzgq-demo"** branch and **"/ (root)"** folder
    - Save the settings
+   - Your demo will be live at: `https://YOUR_USERNAME.github.io/lastwish`
 
-2. **Automatic Deployment:**
-   - The workflow will trigger automatically on push to main branch
-   - Check the **"Actions"** tab to monitor deployment progress
-   - Your site will be live at: `https://YOUR_USERNAME.github.io/lastwish-eth`
+### Option 2: GitHub Actions Deployment
 
-### Manual GitHub Pages Setup
+The repository includes a GitHub Actions workflow for automatic deployment:
 
-If you prefer manual setup:
+1. **Modify Workflow (if needed):**
+   - The workflow is set to trigger on `main` branch
+   - You can modify `.github/workflows/deploy.yml` to trigger on `vxndzzgq-demo` branch
+   - Or merge this branch to `main` when ready
 
-1. Go to repository **Settings** → **Pages**
-2. Under **"Source"**, select **"Deploy from a branch"**
-3. Choose **"main"** branch and **"/ (root)"** folder
-4. Click **"Save"**
-5. Your site will be available at: `https://YOUR_USERNAME.github.io/lastwish-eth`
+2. **Enable GitHub Actions:**
+   - Go to your repository → **Settings** tab → **Pages**
+   - Under **"Source"**, select **"GitHub Actions"**
+   - The workflow will deploy automatically on push
+
+### Option 3: Create Separate Demo Site
+
+For a dedicated demo deployment:
+
+1. **Create GitHub Pages from Branch:**
+   - Deploy `vxndzzgq-demo` branch to GitHub Pages
+   - Access at: `https://YOUR_USERNAME.github.io/lastwish`
+   - This becomes your live demo while keeping main branch separate
 
 ## Required Configuration
 
