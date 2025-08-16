@@ -1,64 +1,3 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="utf-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>LastWish.eth — the decentralized solution</title>
-  <meta name="description" content="LastWish.eth — the decentralized solution">
-  <link rel="stylesheet" href="src/styles.css">
-</head>
-<body>
-  <header>
-    <div class="wrap row">
-      <div>
-        <h1>LastWish.eth</h1>
-        <p class="tag">"the decentralized solution"</p>
-      </div>
-      <div class="grow row">
-        <button id="btnResetApp" class="btn btn-secondary">Reset App</button>
-        <span id="envBadge" class="badge">Ethereum Mainnet</span>
-      </div>
-    </div>
-  </header>
-
-  <main>
-    <section class="card">
-      <h2>Owner Information</h2>
-      <p class="small mt8">Enter your full legal name and any special instructions for your will.</p>
-      <div class="grid-2 mt12">
-        <div>
-          <div class="label">Full Legal Name *</div>
-          <input id="ownerName" type="text" placeholder="John Smith" style="background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;width:100%">
-        </div>
-        <div>
-          <div class="label">Primary Wallet Address</div>
-          <input id="primaryWallet" type="text" placeholder="Connected wallet will appear here" readonly style="background:var(--hover);border:1px solid var(--border);color:var(--text-muted);padding:10px;border-radius:8px;width:100%">
-        </div>
-      </div>
-      <div class="mt12">
-        <div class="label">Special Instructions (optional)</div>
-        <textarea id="specialInstructions" placeholder="Enter any special instructions for your executor regarding the management and distribution of your digital assets..." style="background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;width:100%;min-height:80px;resize:vertical;font-family:inherit"></textarea>
-      </div>
-    </section>
-
-    <section class="card">
-      <h2>Additional Wallets</h2>
-      <p class="small mt8">Add up to 20 wallet addresses that contain your digital assets.</p>
-      <div class="row mt12">
-        <input id="newWalletAddress" type="text" placeholder="0x... or alice.eth" style="background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;flex:1">
-        <button id="btnAddWallet" class="btn btn-secondary">Add Wallet</button>
-      </div>
-      <div id="walletsWrap" class="mt12">
-        <table id="tblWallets">
-          <thead>
-            <tr>
-              <th>Wallet Address</th>
-              <th>ENS</th>
-              <th class="right">Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
       </div>
     </section>
 
@@ -89,29 +28,11 @@
         <div class="small">ERC‑20 and NFTs shown for Ethereum Mainnet.</div>
         <div class="mt12">
           <div class="label">ERC‑20 Tokens</div>
-          <table id="tblTokens">
-            <thead>
-              <tr>
-                <th>Token</th>
-                <th>Balance</th>
-                <th>Assignments (Beneficiary / %)</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+          <table id="tblTokens"><thead><tr><th>Token</th><th>Balance</th><th>Assignments (Beneficiary / %)</th></tr></thead><tbody></tbody></table>
         </div>
         <div class="mt16">
           <div class="label">NFTs</div>
-          <table id="tblNFTs">
-            <thead>
-              <tr>
-                <th>Collection</th>
-                <th>Token ID</th>
-                <th>Assignments (Beneficiary / %)</th>
-              </tr>
-            </thead>
-            <tbody></tbody>
-          </table>
+          <table id="tblNFTs"><thead><tr><th>Collection</th><th>Token ID</th><th>Assignments (Beneficiary / %)</th></tr></thead><tbody></tbody></table>
         </div>
         <div class="mt16 row">
           <button id="btnSaveMap" class="btn btn-secondary">Save Assignments</button>
@@ -121,56 +42,10 @@
     </section>
 
     <section class="card">
-      <h2>Beneficiaries</h2>
-      <p class="small mt8">Wallet is optional — you can enter an ENS like <em>alice.eth</em> and we'll resolve it.</p>
-      <div class="grid-3 mt12">
-        <div>
-          <div class="label">Name *</div>
-          <input id="bName" type="text" placeholder="Jane Doe">
-        </div>
-        <div>
-          <div class="label">Wallet or ENS (optional)</div>
-          <input id="bAddressOrEns" type="text" placeholder="0x... or alice.eth">
-        </div>
-        <div>
-          <div class="label">Email (optional)</div>
-          <input id="bEmail" type="email" placeholder="jane@example.com">
-        </div>
-      </div>
-      <div class="grid-2 mt8">
-        <div>
-          <div class="label">Relationship (optional)</div>
-          <input id="bRelation" type="text" placeholder="Spouse, Child, Executor">
-        </div>
-        <div class="right">
-          <button id="btnAddBeneficiary" class="btn btn-connect" style="margin-top:18px">Add Beneficiary</button>
-        </div>
-      </div>
-      <div class="mt12">
-        <table id="tblBeneficiaries">
-          <thead>
-            <tr>
-              <th>Name</th>
-              <th>Address</th>
-              <th>ENS</th>
-              <th>Email</th>
-              <th>Relationship</th>
-              <th class="right">Actions</th>
-            </tr>
-          </thead>
-          <tbody></tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card">
       <h2>Payment</h2>
       <p class="small mt8">ENS holders get a discount.</p>
       <div class="mt12 row">
-        <button id="btnPay" class="btn btn-pay" disabled>
-          Pay &nbsp;<span id="payAmountLabel"></span> ETH 
-          <span id="payDiscount" class="strike hidden"></span>
-        </button>
+        <button id="btnPay" class="btn btn-pay" disabled>Pay &nbsp;<span id="payAmountLabel"></span> ETH <span id="payDiscount" class="strike hidden"></span></button>
         <div id="payStatus" class="small">Awaiting connection…</div>
       </div>
       <div id="receiptBox" class="mt8 small hidden">
@@ -186,199 +61,94 @@
       </div>
     </section>
 
-    <footer class="wrap small" style="text-align:center;margin-top:24px">
-      © <span id="year"></span> LastWish.eth
-    </footer>
+    <footer class="wrap small" style="text-align:center;margin-top:24px">© <span id="year"></span> LastWish.eth</footer>
   </main>
 
-  <script src="src/config.js"></script>
-  <script src="src/app.js"></script>
-</body>
-=======
-<!doctype html>
-<html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Last Wish - Secure Your Crypto Legacy</title>
-    <meta name="description" content="Last Wish helps you create notarizable addendums to your will for cryptocurrency assets. Secure your digital legacy for your loved ones." />
-    <style>
-      * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-      }
-      
-      body {
-        min-height: 100vh;
-        background: linear-gradient(135deg, #1a1a1a 0%, #2d2d2d 100%);
-        color: #ffffff;
-        font-family: system-ui, -apple-system, sans-serif;
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        padding: 2rem;
-      }
-      
-      .container {
-        text-align: center;
-        max-width: 800px;
-        width: 100%;
-      }
-      
-      .title {
-        font-size: 3rem;
-        font-weight: bold;
-        margin-bottom: 1rem;
-        background: linear-gradient(135deg, #3b82f6, #8b5cf6);
-        -webkit-background-clip: text;
-        -webkit-text-fill-color: transparent;
-        background-clip: text;
-      }
-      
-      .subtitle {
-        font-size: 1.25rem;
-        margin-bottom: 2rem;
-        color: #e5e7eb;
-      }
-      
-      .status-card {
-        background: #374151;
-        padding: 2rem;
-        border-radius: 1rem;
-        margin-bottom: 2rem;
-      }
-      
-      .status-title {
-        font-size: 1.5rem;
-        margin-bottom: 1rem;
-        color: #f9fafb;
-      }
-      
-      .status-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-        gap: 1rem;
-        text-align: left;
-      }
-      
-      .status-item {
-        background: #1f2937;
-        padding: 1rem;
-        border-radius: 0.5rem;
-      }
-      
-      .status-item h3 {
-        color: #10b981;
-        margin-bottom: 0.5rem;
-      }
-      
-      .status-item p {
-        color: #d1d5db;
-        font-size: 0.875rem;
-      }
-      
-      .features-card {
-        margin-top: 3rem;
-        padding: 1.5rem;
-        background: #1f2937;
-        border-radius: 0.5rem;
-        border: 1px solid #374151;
-      }
-      
-      .features-title {
-        font-size: 1.25rem;
-        margin-bottom: 1rem;
-        color: #f9fafb;
-      }
-      
-      .features-grid {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
-        gap: 1rem;
-        text-align: left;
-      }
-      
-      .features-list {
-        list-style: none;
-        padding: 0;
-        margin: 0;
-        color: #d1d5db;
-      }
-      
-      .features-list li {
-        margin-bottom: 0.5rem;
-      }
-      
-      @media (max-width: 768px) {
-        .title {
-          font-size: 2rem;
-        }
-        
-        .status-grid {
-          grid-template-columns: 1fr;
-        }
-        
-        .features-grid {
-          grid-template-columns: 1fr;
-        }
-      }
-    </style>
-  </head>
-  <body>
-    <div class="container">
-      <h1 class="title">Last Wish</h1>
-      
-      <p class="subtitle">Secure Your Cryptocurrency Legacy</p>
-      
-      <div class="status-card">
-        <h2 class="status-title">Platform Status</h2>
-        
-        <div class="status-grid">
-          <div class="status-item">
-            <h3>✅ Frontend</h3>
-            <p>React application running</p>
-          </div>
-          
-          <div class="status-item">
-            <h3>✅ Backend</h3>
-            <p>Flask API server ready</p>
-          </div>
-          
-          <div class="status-item">
-            <h3>✅ Security</h3>
-            <p>AES-256 encryption enabled</p>
-          </div>
-          
-          <div class="status-item">
-            <h3>✅ Accessibility</h3>
-            <p>WCAG 2.1 compliant</p>
-          </div>
-        </div>
-      </div>
-      
-      <div class="features-card">
-        <h3 class="features-title">Production Ready Features</h3>
-        
-        <div class="features-grid">
-          <ul class="features-list">
-            <li>🔐 Blockchain wallet integration</li>
-            <li>📄 Legal document generation</li>
-            <li>💳 Cryptocurrency payments</li>
-            <li>📧 Email notifications</li>
-          </ul>
-          
-          <ul class="features-list">
-            <li>⚖️ Legal compliance checking</li>
-            <li>🛡️ Enterprise security</li>
-            <li>♿ Full accessibility</li>
-            <li>🚀 Performance optimized</li>
-          </ul>
-        </div>
-      </div>
-    </div>
-  </body>
->>>>>>> 4bd196c130ea4072b87de612d816190cca59cab6
-</html>
+  <script src="./config.js"></script>
+  <script src="./app.js"></script>
+<manus-content-root></manus-content-root><script>
+			var __manus_space_editor_info = {
+			spaceId : 'vxndzzgq',
+			patchList : [],
+			};
+				{
+				var __manus__global_env = {
+  "apiHost": "https://api.manus.im",
+  "host": "https://manus.im",
+  "amplitudeKey": "46ac3f9abb41dd2d17a5785e052bc6d3"
+};
 
+(function(){const e=document.createElement("link").relList;if(e&&e.supports&&e.supports("modulepreload"))return;for(const i of document.querySelectorAll('link[rel="modulepreload"]'))l(i);new MutationObserver(i=>{for(const o of i)if(o.type==="childList")for(const r of o.addedNodes)r.tagName==="LINK"&&r.rel==="modulepreload"&&l(r)}).observe(document,{childList:!0,subtree:!0});function n(i){const o={};return i.integrity&&(o.integrity=i.integrity),i.referrerPolicy&&(o.referrerPolicy=i.referrerPolicy),i.crossOrigin==="use-credentials"?o.credentials="include":i.crossOrigin==="anonymous"?o.credentials="omit":o.credentials="same-origin",o}function l(i){if(i.ep)return;i.ep=!0;const o=n(i);fetch(i.href,o)}})();/**
+ * @license
+ * Copyright 2017 Google LLC
+ * SPDX-License-Identifier: BSD-3-Clause
+ */const ln=globalThis,On=ln.trustedTypes,lo=On?On.createPolicy("lit-html",{createHTML:t=>t}):void 0,sc="$lit$",Zt=`lit$${Math.random().toFixed(9).slice(2)}$`,uc="?"+Zt,Hd=`<${uc}>`,Bt=document,dn=()=>Bt.createComment(""),sn=t=>t===null||typeof t!="object"&&typeof t!="function",hi=Array.isArray,Dd=t=>hi(t)||typeof(t==null?void 0:t[Symbol.iterator])=="function",Wl=`[ 	
+\f\r]`,qt=/<(?:(!--|\/[^a-zA-Z])|(\/?[a-zA-Z][^>\s]*)|(\/?$))/g,io=/-->/g,oo=/>/g,Rt=RegExp(`>|${Wl}(?:([^\\s"'>=/]+)(${Wl}*=${Wl}*(?:[^ 	
+\f\r"'\`<>=]|("|')|))|$)`,"g"),ro=/'/g,co=/"/g,gc=/^(?:script|style|textarea|title)$/i,hc=t=>(e,...n)=>({_$litType$:t,strings:e,values:n}),M=hc(1),Be=hc(2),vt=Symbol.for("lit-noChange"),le=Symbol.for("lit-nothing"),ao=new WeakMap,Ct=Bt.createTreeWalker(Bt,129);function bc(t,e){if(!hi(t)||!t.hasOwnProperty("raw"))throw Error("invalid template strings array");return lo!==void 0?lo.createHTML(e):e}const jd=(t,e)=>{const n=t.length-1,l=[];let i,o=e===2?"<svg>":e===3?"<math>":"",r=qt;for(let c=0;c<n;c++){const a=t[c];let d,s,u=-1,b=0;for(;b<a.length&&(r.lastIndex=b,s=r.exec(a),s!==null);)b=r.lastIndex,r===qt?s[1]==="!--"?r=io:s[1]!==void 0?r=oo:s[2]!==void 0?(gc.test(s[2])&&(i=RegExp("</"+s[2],"g")),r=Rt):s[3]!==void 0&&(r=Rt):r===Rt?s[0]===">"?(r=i??qt,u=-1):s[1]===void 0?u=-2:(u=r.lastIndex-s[2].length,d=s[1],r=s[3]===void 0?Rt:s[3]==='"'?co:ro):r===co||r===ro?r=Rt:r===io||r===oo?r=qt:(r=Rt,i=void 0);const g=r===Rt&&t[c+1].startsWith("/>")?" ":"";o+=r===qt?a+Hd:u>=0?(l.push(d),a.slice(0,u)+sc+a.slice(u)+Zt+g):a+Zt+(u===-2?c:g)}return[bc(t,o+(t[n]||"<?>")+(e===2?"</svg>":e===3?"</math>":"")),l]};class un{constructor({strings:e,_$litType$:n},l){let i;this.parts=[];let o=0,r=0;const c=e.length-1,a=this.parts,[d,s]=jd(e,n);if(this.el=un.createElement(d,l),Ct.currentNode=this.el.content,n===2||n===3){const u=this.el.content.firstChild;u.replaceWith(...u.childNodes)}for(;(i=Ct.nextNode())!==null&&a.length<c;){if(i.nodeType===1){if(i.hasAttributes())for(const u of i.getAttributeNames())if(u.endsWith(sc)){const b=s[r++],g=i.getAttribute(u).split(Zt),V=/([.?@])?(.*)/.exec(b);a.push({type:1,index:o,name:V[2],strings:g,ctor:V[1]==="."?Pd:V[1]==="?"?Od:V[1]==="@"?$d:bl}),i.removeAttribute(u)}else u.startsWith(Zt)&&(a.push({type:6,index:o}),i.removeAttribute(u));if(gc.test(i.tagName)){const u=i.textContent.split(Zt),b=u.length-1;if(b>0){i.textContent=On?On.emptyScript:"";for(let g=0;g<b;g++)i.append(u[g],dn()),Ct.nextNode(),a.push({type:2,index:++o});i.append(u[b],dn())}}}else if(i.nodeType===8)if(i.data===uc)a.push({type:2,index:o});else{let u=-1;for(;(u=i.data.indexOf(Zt,u+1))!==-1;)a.push({type:7,index:o}),u+=Zt.length-1}o++}}static createElement(e,n){const l=Bt.createElement("template");return l.innerHTML=e,l}}function Mt(t,e,n=t,l){var r,c;if(e===vt)return e;let i=l!==void 0?(r=n._$Co)==null?void 0:r[l]:n._$Cl;const o=sn(e)?void 0:e._$litDirective$;return(i==null?void 0:i.constructor)!==o&&((c=i==null?void 0:i._$AO)==null||c.call(i,!1),o===void 0?i=void 0:(i=new o(t),i._$AT(t,n,l)),l!==void 0?(n._$Co??(n._$Co=[]))[l]=i:n._$Cl=i),i!==void 0&&(e=Mt(t,i._$AS(t,e.values),i,l)),e}let _d=class{constructor(e,n){this._$AV=[],this._$AN=void 0,this._$AD=e,this._$AM=n}get parentNode(){return this._$AM.parentNode}get _$AU(){return this._$AM._$AU}u(e){const{el:{content:n},parts:l}=this._$AD,i=((e==null?void 0:e.creationScope)??Bt).importNode(n,!0);Ct.currentNode=i;let o=Ct.nextNode(),r=0,c=0,a=l[0];for(;a!==void 0;){if(r===a.index){let d;a.type===2?d=new bi(o,o.nextSibling,this,e):a.type===1?d=new a.ctor(o,a.name,a.strings,this,e):a.type===6&&(d=new qd(o,this,e)),this._$AV.push(d),a=l[++c]}r!==(a==null?void 0:a.index)&&(o=Ct.nextNode(),r++)}return Ct.currentNode=Bt,i}p(e){let n=0;for(const l of this._$AV)l!==void 0&&(l.strings!==void 0?(l._$AI(e,l,n),n+=l.strings.length-2):l._$AI(e[n])),n++}},bi=class Vc{get _$AU(){var e;return((e=this._$AM)==null?void 0:e._$AU)??this._$Cv}constructor(e,n,l,i){this.type=2,this._$AH=le,this._$AN=void 0,this._$AA=e,this._$AB=n,this._$AM=l,this.options=i,this._$Cv=(i==null?void 0:i.isConnected)??!0}get parentNode(){let e=this._$AA.parentNode;const n=this._$AM;return n!==void 0&&(e==null?void 0:e.nodeType)===11&&(e=n.parentNode),e}get startNode(){return this._$AA}get endNode(){return this._$AB}_$AI(e,n=this){e=Mt(this,e,n),sn(e)?e===le||e==null||e===""?(this._$AH!==le&&this._$AR(),this._$AH=le):e!==this._$AH&&e!==vt&&this._(e):e._$litType$!==void 0?this.$(e):e.nodeType!==void 0?this.T(e):Dd(e)?this.k(e):this._(e)}O(e){return this._$AA.parentNode.insertBefore(e,this._$AB)}T(e){this._$AH!==e&&(this._$AR(),this._$AH=this.O(e))}_(e){this._$AH!==le&&sn(this._$AH)?this._$AA.nextSibling.data=e:this.T(Bt.createTextNode(e)),this._$AH=e}$(e){var o;const{values:n,_$litType$:l}=e,i=typeof l=="number"?this._$AC(e):(l.el===void 0&&(l.el=un.createElement(bc(l.h,l.h[0]),this.options)),l);if(((o=this._$AH)==null?void 0:o._$AD)===i)this._$AH.p(n);else{const r=new _d(i,this),c=r.u(this.options);r.p(n),this.T(c),this._$AH=r}}_$AC(e){let n=ao.get(e.strings);return n===void 0&&ao.set(e.strings,n=new un(e)),n}k(e){hi(this._$AH)||(this._$AH=[],this._$AR());const n=this._$AH;let l,i=0;for(const o of e)i===n.length?n.push(l=new Vc(this.O(dn()),this.O(dn()),this,this.options)):l=n[i],l._$AI(o),i++;i<n.length&&(this._$AR(l&&l._$AB.nextSibling,i),n.length=i)}_$AR(e=this._$AA.nextSibling,n){var l;for((l=this._$AP)==null?void 0:l.call(this,!1,!0,n);e&&e!==this._$AB;){const i=e.nextSibling;e.remove(),e=i}}setConnected(e){var n;this._$AM===void 0&&(this._$Cv=e,(n=this._$AP)==null||n.call(this,e))}},bl=class{get tagName(){return this.element.tagName}get _$AU(){return this._$AM._$AU}constructor(e,n,l,i,o){this.type=1,this._$AH=le,this._$AN=void 0,this.element=e,this.name=n,this._$AM=i,this.options=o,l.length>2||l[0]!==""||l[1]!==""?(this._$AH=Array(l.length-1).fill(new String),this.strings=l):this._$AH=le}_$AI(e,n=this,l,i){const o=this.strings;let r=!1;if(o===void 0)e=Mt(this,e,n,0),r=!sn(e)||e!==this._$AH&&e!==vt,r&&(this._$AH=e);else{const c=e;let a,d;for(e=o[0],a=0;a<o.length-1;a++)d=Mt(this,c[l+a],n,a),d===vt&&(d=this._$AH[a]),r||(r=!sn(d)||d!==this._$AH[a]),d===le?e=le:e!==le&&(e+=(d??"")+o[a+1]),this._$AH[a]=d}r&&!i&&this.j(e)}j(e){e===le?this.element.removeAttribute(this.name):this.element.setAttribute(this.name,e??"")}};class Pd extends bl{constructor(){super(...arguments),this.type=3}j(e){this.element[this.name]=e===le?void 0:e}}let Od=class extends bl{constructor(){super(...arguments),this.type=4}j(e){this.element.toggleAttribute(this.name,!!e&&e!==le)}},$d=class extends bl{constructor(e,n,l,i,o){super(e,n,l,i,o),this.type=5}_$AI(e,n=this){if((e=Mt(this,e,n,0)??le)===vt)return;const l=this._$AH,i=e===le&&l!==le||e.capture!==l.capture||e.once!==l.once||e.passive!==l.passive,o=e!==le&&(l===le||i);i&&this.element.removeEventListener(this.name,this,l),o&&this.element.addEventListener(this.name,this,e),this._$AH=e}handleEvent(e){var n;typeof this._$AH=="function"?this._$AH.call(((n=this.options)==null?void 0:n.host)??this.element,e):this._$AH.handleEvent(e)}};class qd{constructor(e,n,l){this.element=e,this.type=6,this._$AN=void 0,this._$AM=n,this.options=l}get _$AU(){return this._$AM._$AU}_$AI(e){Mt(this,e)}}const Bl=ln.litHtmlPolyfillSupport;Bl==null||Bl(un,bi),(ln.litHtmlVersions??(ln.litHtmlVersions=[])).push("3.3.0");const pt=(t,e,n)=>{const l=e;let i=l._$litPart$;return i===void 0&&(l._$litPart$=i=new bi(e.insertBefore(dn(),null),null,void 0,{})),i._$AI(t),i};class Vl extends HTMLElement{constructor(){super(),this._dialogElement=null,this._isOpen=!1,this._title="Dialog",this._isClosable=!0,this._shadowRoot=this.attachShadow({mode:"open"}),this._render()}static get observedAttributes(){return["open","title","closable","width"]}connectedCallback(){this.hasAttribute("open")?this._isOpen=!0:this._isOpen=!1,this._title=this.getAttribute("title")||this._title,this.hasAttribute("closable")?this._isClosable=this.getAttribute("closable")!=="false":this._isClosable=!0;const e=this.getAttribute("width");e?this.style.setProperty("--dynamic-dialog-width",e):this.style.removeProperty("--dynamic-dialog-width"),this._render(),this._dialogElement=this._shadowRoot.querySelector("dialog"),this._dialogElement&&(this._dialogElement.addEventListener("click",n=>{this._isClosable&&n.target===this._dialogElement&&this.close()}),this._dialogElement.addEventListener("close",()=>{this._isOpen&&(this._isOpen=!1,this.hasAttribute("open")&&this.removeAttribute("open"),this._dispatchCloseEvent())}),this._isOpen&&!this._dialogElement.open&&(this._dialogElement.showModal(),this._dispatchOpenEvent()))}disconnectedCallback(){}attributeChangedCallback(e,n,l){const i=this._isOpen;let o=!1;if(e==="open"){const r=l!==null;this._isOpen!==r&&(this._isOpen=r),this._dialogElement&&(this._isOpen?this._dialogElement.open||(this._dialogElement.showModal(),i||this._dispatchOpenEvent()):this._dialogElement.open&&this._dialogElement.close())}else if(e==="title"){const r=l||"Dialog";this._title!==r&&(this._title=r,o=!0)}else if(e==="closable"){const r=l!=="false";this._isClosable!==r&&(this._isClosable=r,o=!0)}else e==="width"&&(l!==null?this.style.setProperty("--dynamic-dialog-width",l):this.style.removeProperty("--dynamic-dialog-width"));o&&this._render()}show(){this._isOpen?this._dialogElement&&!this._dialogElement.open&&(this._dialogElement.showModal(),this._dispatchOpenEvent()):this.setAttribute("open","")}close(){this._isOpen?this.removeAttribute("open"):this._dialogElement&&this._dialogElement.open&&this._dialogElement.close()}_handleCloseButtonClick(){this.close()}_dispatchOpenEvent(){this.dispatchEvent(new CustomEvent("dialog-open",{bubbles:!0,composed:!0}))}_dispatchCloseEvent(){this.dispatchEvent(new CustomEvent("dialog-close",{bubbles:!0,composed:!0}))}_render(){const e=M`
+      <style>
+        :host {
+          /* Default width for the dialog, can be overridden by the 'width' attribute */
+          --lit-html-dialog-default-width: 400px;
+          /* --dynamic-dialog-width will be set on the host instance via JS */
+          --lit-html-dialog-font-family: 'SF Pro', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+          --lit-html-dialog-surface-bg: white;
+          --lit-html-dialog-border-main: rgba(0, 0, 0, 0.06);
+          --lit-html-dialog-text-primary: #34322D;
+          --lit-html-dialog-text-tertiary: #858481;
+          --lit-html-dialog-text-white: white;
+          --lit-html-dialog-icon-tertiary: #858481;
+          --lit-html-dialog-border-btn-main: rgba(0, 0, 0, 0.12);
+          --lit-html-dialog-function-error-bg: #F25A5A;
+          --lit-html-dialog-button-default-bg: transparent;
+          --lit-html-dialog-box-shadow: 0px 4px 11px rgba(0, 0, 0, 0.15);
+          --lit-html-dialog-border-radius: 20px;
+        }
+
+        dialog {
+          /* Use the dynamic width variable, falling back to the default width */
+          width: var(--dynamic-dialog-width, var(--lit-html-dialog-default-width));
+          max-width: 90vw; /* Add a max-width to prevent overflow on small screens */
+
+          background: var(--lit-html-dialog-surface-bg);
+          box-shadow: var(--lit-html-dialog-box-shadow);
+          border-radius: var(--lit-html-dialog-border-radius);
+          border: 1px var(--lit-html-dialog-border-main) solid;
+          padding: 0;
+          margin: auto;
+          overflow: visible;
+        }
+
+        dialog::backdrop {
+          background: rgba(0, 0, 0, 0.3);
+        }
+
+        .dialog-header {
+          display: flex;
+          justify-content: space-between;
+          align-items: flex-start;
+          padding: 20px 16px 10px 20px;
+          gap: 10px;
+        }
+
+        .dialog-title {
+          flex: 1 1 0;
+          color: var(--lit-html-dialog-text-primary);
+          font-size: 18px;
+          font-family: var(--lit-html-dialog-font-family);
+          font-weight: 600;
+          line-height: 24px;
+          word-wrap: break-word;
+        }
+
+        .dialog-close-button {
+          background: none;
+          border: none;
+          cursor: pointer;
+          padding: 0;
+          width: 28px;
+          height: 28px;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          color: var(--lit-html-dialog-icon-tert
+(Content truncated due to size limit. Use page ranges or line ranges to read remaining content)
