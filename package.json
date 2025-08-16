@@ -1,0 +1,47 @@
+{
+  "name": "lastwish-eth",
+  "version": "1.0.0",
+  "description": "LastWish.eth - A decentralized platform for creating digital wills and managing cryptocurrency inheritance",
+  "main": "index.html",
+  "scripts": {
+    "start": "python3 -m http.server 8000",
+    "dev": "python3 -m http.server 8000",
+    "build": "echo 'No build step required for static site'",
+    "test": "echo 'No tests specified'",
+    "deploy": "echo 'Deploy using GitHub Pages or your preferred hosting service'"
+  },
+  "keywords": [
+    "ethereum",
+    "blockchain",
+    "web3",
+    "cryptocurrency",
+    "digital-will",
+    "inheritance",
+    "decentralized",
+    "smart-contracts",
+    "nft",
+    "defi",
+    "ens"
+  ],
+  "author": "LastWish.eth Team",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/your-username/lastwish-eth.git"
+  },
+  "bugs": {
+    "url": "https://github.com/your-username/lastwish-eth/issues"
+  },
+  "homepage": "https://github.com/your-username/lastwish-eth#readme",
+  "dependencies": {},
+  "devDependencies": {},
+  "engines": {
+    "node": ">=14.0.0"
+  },
+  "browserslist": [
+    "> 1%",
+    "last 2 versions",
+    "not dead"
+  ]
+}
+

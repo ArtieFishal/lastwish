@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>LastWish.eth — the decentralized solution</title>
+  <meta name="description" content="LastWish.eth — the decentralized solution" />
+  <link rel="stylesheet" href="src/styles.css">
+</head>
+<body>
+  <header>
+    <div class="wrap row">
+      <div>
+        <h1>LastWish.eth</h1>
+        <p class="tag">"the decentralized solution"</p>
+      </div>
+      <div class="grow row">
+        <button id="btnResetApp" class="btn btn-secondary">Reset App</button>
+        <span id="envBadge" class="badge">Ethereum Mainnet</span>
+      </div>
+    </div>
+  </header>
+
+  <main>
+    <section class="card">
+      <h2>Owner Information</h2>
+      <p class="small mt8">Enter your full legal name and any special instructions for your will.</p>
+      <div class="grid-2 mt12">
+        <div><div class="label">Full Legal Name *</div><input id="ownerName" type="text" placeholder="John Smith" style="background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;width:100%"></div>
+        <div><div class="label">Primary Wallet Address</div><input id="primaryWallet" type="text" placeholder="Connected wallet will appear here" readonly style="background:var(--hover);border:1px solid var(--border);color:var(--text-muted);padding:10px;border-radius:8px;width:100%"></div>
+      </div>
+      <div class="mt12">
+        <div class="label">Special Instructions (optional)</div>
+        <textarea id="specialInstructions" placeholder="Enter any special instructions for your executor regarding the management and distribution of your digital assets..." style="background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;width:100%;min-height:80px;resize:vertical;font-family:inherit"></textarea>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Additional Wallets</h2>
+      <p class="small mt8">Add up to 20 wallet addresses that contain your digital assets.</p>
+      <div class="row mt12">
+        <input id="newWalletAddress" type="text" placeholder="0x... or alice.eth" style="background:var(--card-bg);border:1px solid var(--border);color:var(--text);padding:10px;border-radius:8px;flex:1">
+        <button id="btnAddWallet" class="btn btn-secondary">Add Wallet</button>
+      </div>
+      <div id="walletsWrap" class="mt12">
+        <table id="tblWallets">
+          <thead><tr><th>Wallet Address</th><th>ENS</th><th class="right">Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Beneficiaries</h2>
+      <p class="small mt8">Wallet is optional — you can enter an ENS like <em>alice.eth</em> and we'll resolve it.</p>
+      <div class="grid-3 mt12">
+        <div><div class="label">Name *</div><input id="bName" type="text" placeholder="Jane Doe"></div>
+        <div><div class="label">Wallet or ENS (optional)</div><input id="bAddressOrEns" type="text" placeholder="0x... or alice.eth"></div>
+        <div><div class="label">Email (optional)</div><input id="bEmail" type="email" placeholder="jane@example.com"></div>
+      </div>
+      <div class="grid-2 mt8">
+        <div><div class="label">Relationship (optional)</div><input id="bRelation" type="text" placeholder="Spouse, Child, Executor"></div>
+        <div class="right"><button id="btnAddBeneficiary" class="btn btn-connect" style="margin-top:18px">Add Beneficiary</button></div>
+      </div>
+      <div class="mt12">
+        <table id="tblBeneficiaries">
+          <thead><tr><th>Name</th><th>Address</th><th>ENS</th><th>Email</th><th>Relationship</th><th class="right">Actions</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Wallet</h2>
+      <p class="small mt8">Connect, sign a session (off‑chain), or disconnect. Reset App clears local data.</p>
+      <div class="row mt8">
+        <button id="btnConnect" class="btn btn-connect">Connect</button>
+        <button id="btnSign" class="btn btn-secondary" disabled>Sign Session</button>
+        <button id="btnDisconnect" class="btn btn-danger" disabled>Disconnect</button>
+        <div id="connStatus" class="small">Not connected</div>
+      </div>
+      <div id="accountInfo" class="small hidden" style="margin-top:8px">
+        <div>Account: <span id="acct"></span> <span id="acctEns" class="ens hidden"></span></div>
+        <div>Chain: <span id="chain"></span></div>
+        <div id="sigStatus" class="small"></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Assets & Assignments</h2>
+      <div class="row mt8">
+        <button id="btnLoadAssets" class="btn btn-secondary" disabled>Load Assets</button>
+        <button id="btnLoadDemo" class="btn btn-connect">Load Demo Data</button>
+        <div id="assetsError" class="small danger"></div>
+      </div>
+      <div id="assetsWrap" class="mt12 hidden">
+        <div class="small">ERC‑20 and NFTs shown for Ethereum Mainnet.</div>
+        <div class="mt12">
+          <div class="label">ERC‑20 Tokens</div>
+          <table id="tblTokens"><thead><tr><th>Token</th><th>Balance</th><th>Assignments (Beneficiary / %)</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="mt16">
+          <div class="label">NFTs</div>
+          <table id="tblNFTs"><thead><tr><th>Collection</th><th>Token ID</th><th>Assignments (Beneficiary / %)</th></tr></thead><tbody></tbody></table>
+        </div>
+        <div class="mt16 row">
+          <button id="btnSaveMap" class="btn btn-secondary">Save Assignments</button>
+          <span id="saveStatus" class="small"></span>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Payment</h2>
+      <p class="small mt8">ENS holders get a discount.</p>
+      <div class="mt12 row">
+        <button id="btnPay" class="btn btn-pay" disabled>Pay &nbsp;<span id="payAmountLabel"></span> ETH <span id="payDiscount" class="strike hidden"></span></button>
+        <div id="payStatus" class="small">Awaiting connection…</div>
+      </div>
+      <div id="receiptBox" class="mt8 small hidden">
+        <div>Tx Hash: <a id="txhash" href="#" target="_blank"></a></div>
+        <div>Confirmed in block <span id="blocknum"></span></div>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Generate & Print</h2>
+      <div class="mt12">
+        <button id="btnPrint" class="btn btn-print">Generate & Print</button>
+      </div>
+    </section>
+
+    <footer class="wrap small" style="text-align:center;margin-top:24px">© <span id="year"></span> LastWish.eth</footer>
+  </main>
+
+  <script src="src/config.js"></script>
+  <script src="src/app.js"></script>
+</body>
+</html>
+
