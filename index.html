@@ -6,6 +6,9 @@
   <title>LastWish.eth — the decentralized solution</title>
   <meta name="description" content="LastWish.eth — the decentralized solution" />
   <link rel="stylesheet" href="src/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/ethers@5.7.2/dist/ethers.umd.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/web3modal@1.9.12/dist/index.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@walletconnect/web3-provider@1.8.0/dist/umd/index.min.js"></script>
 </head>
 <body>
   <header>
@@ -15,6 +18,14 @@
         <p class="tag">"the decentralized solution"</p>
       </div>
       <div class="grow row">
+        <div class="chain-selector-wrap">
+          <select id="chainSelector" class="chain-selector">
+            <option value="1">Ethereum</option>
+            <option value="137">Polygon</option>
+            <option value="56">BNB Smart Chain</option>
+            <option value="42161">Arbitrum</option>
+          </select>
+        </div>
         <button id="btnResetApp" class="btn btn-secondary">Reset App</button>
         <span id="envBadge" class="badge">Ethereum Mainnet</span>
       </div>
