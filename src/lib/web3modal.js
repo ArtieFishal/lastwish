@@ -4,7 +4,11 @@ import { defaultWagmiConfig } from '@web3modal/wagmi/react/config'
 import { mainnet, polygon, bsc, avalanche } from 'viem/chains'
 
 // 1. Get projectId from https://cloud.walletconnect.com
-const projectId = '49fef037b7a144df8d09cb34c87686c3'
+const projectId = import.meta.env.VITE_WALLETCONNECT_PROJECT_ID
+
+if (!projectId) {
+  throw new Error('VITE_WALLETCONNECT_PROJECT_ID is not set')
+}
 
 // 2. Create wagmiConfig
 const metadata = {
