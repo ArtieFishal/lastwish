@@ -3,62 +3,120 @@
   const $ = (s)=>document.querySelector(s);
   const $$ = (s)=>Array.from(document.querySelectorAll(s));
 
-  // Header Reset
+  // --- DOM ELEMENTS ---
   const btnResetApp = $("#btnResetApp");
-
-  // Owner Information elements
+  const chainSelector = $("#chainSelector");
   const ownerName = $("#ownerName");
   const primaryWallet = $("#primaryWallet");
   const specialInstructions = $("#specialInstructions");
-
-  // Multiple Wallets elements
   const newWalletAddress = $("#newWalletAddress");
   const btnAddWallet = $("#btnAddWallet");
   const tblWallets = $("#tblWallets tbody");
-
-  // Wallet elements
   const btnConnect=$("#btnConnect"),btnSign=$("#btnSign"),btnDisconnect=$("#btnDisconnect"),connStatus=$("#connStatus");
   const acctEl=$("#acct"),acctEns=$("#acctEns"),chainEl=$("#chain"),accountInfo=$("#accountInfo"),sigStatus=$("#sigStatus");
   const btnPay=$("#btnPay"),payStatus=$("#payStatus"),payAmountLabel=$("#payAmountLabel"),payDiscount=$("#payDiscount"),receiptBox=$("#receiptBox"),txhashEl=$("#txhash"),blocknumEl=$("#blocknum");
   const btnPrint=$("#btnPrint"),yearEl=$("#year");
-
-  // Beneficiaries
   const bName=$("#bName"), bAddressOrEns=$("#bAddressOrEns"), bEmail=$("#bEmail"), bRelation=$("#bRelation"), btnAddBeneficiary=$("#btnAddBeneficiary"), tblBeneficiaries=$("#tblBeneficiaries tbody");
-
-  // Assets
   const btnLoadAssets=$("#btnLoadAssets"), btnLoadDemo=$("#btnLoadDemo"), assetsError=$("#assetsError"), assetsWrap=$("#assetsWrap"), tblTokens=$("#tblTokens tbody"), tblNFTs=$("#tblNFTs tbody"), btnSaveMap=$("#btnSaveMap"), saveStatus=$("#saveStatus");
+  const envBadge = $("#envBadge");
 
   yearEl.textContent = new Date().getFullYear();
   payAmountLabel.textContent = String(cfg.payAmountEth || 0);
 
-  // State
-  let currentAccount=null,currentChainId=null,currentEns=null,sessionSig=null,sessionNonce=null;
-  let beneficiaries=[], assignments={}, additionalWallets=[]; // assignments: key => [{beneficiaryId,percent}]
+  // --- WEB3 STATE ---
+  let web3Modal;
+  let provider;
+  let signer;
+  let currentAccount=null, currentChainId=null, currentEns=null, sessionSig=null, sessionNonce=null;
+
+  // --- APP STATE ---
+  let beneficiaries=[], assignments={}, additionalWallets=[];
   const basePrice=Number(cfg.payAmountEth||0);
 
-  // Helpers
+  // --- WEB3 MODAL SETUP ---
+  const Web3Modal = window.Web3Modal.default;
+  const WalletConnectProvider = window.WalletConnectProvider.default;
+  let providerInstance;
+
+  const providerOptions = {
+    walletconnect: {
+      package: WalletConnectProvider,
+      options: {
+        projectId: cfg.walletConnectProjectId || "YOUR_WALLETCONNECT_PROJECT_ID_HERE",
+      }
+    }
+  };
+
+  web3Modal = new Web3Modal({
+    cacheProvider: true,
+    providerOptions,
+    disableInjectedProvider: false,
+  });
+
+  // --- HELPERS ---
   const S={ key:(n)=>`${n}_${(currentAccount||'').toLowerCase()}`, load:(k)=>{try{return JSON.parse(localStorage.getItem(k)||'null')}catch{return null}}, save:(k,v)=>localStorage.setItem(k,JSON.stringify(v)) };
   function short(a){return a?a.slice(0,6)+"…"+a.slice(-4):"";}
   function formatEth(n){return (Math.round(Number(n)*1e6)/1e6).toString();}
   function priceWithDiscount(){ return (currentEns && cfg.ensDiscountPercent>0) ? Math.max(basePrice*(1-cfg.ensDiscountPercent/100),0) : basePrice; }
-  function setPriceLabels(){ const base=basePrice, fin=priceWithDiscount(); if(fin<base){ payAmountLabel.textContent=formatEth(fin); payDiscount.textContent=`(${formatEth(base)} ETH)`; payDiscount.classList.remove("hidden"); } else { payAmountLabel.textContent=formatEth(base); payDiscount.classList.add("hidden"); } }
+  function setPriceLabels(){
+    const chainInfo = cfg.chains[currentChainId];
+    const symbol = chainInfo ? chainInfo.symbol : 'ETH';
+    const base=basePrice, fin=priceWithDiscount();
+    if(fin<base){
+      payAmountLabel.textContent=`${formatEth(fin)} ${symbol}`;
+      payDiscount.textContent=`(${formatEth(base)} ${symbol})`;
+      payDiscount.classList.remove("hidden");
+    } else {
+      payAmountLabel.textContent=`${formatEth(base)} ${symbol}`;
+      payDiscount.classList.add("hidden");
+    }
+  }
 
-  function clearListeners(){ if(window.ethereum && window.ethereum.removeAllListeners){ try{window.ethereum.removeAllListeners("accountsChanged");}catch{} try{window.ethereum.removeAllListeners("chainChanged");}catch{} } }
-  function resetApp(){
-    clearListeners();
+  function subscribeToProviderEvents() {
+    if (!providerInstance) return;
+    providerInstance.on("accountsChanged", (accounts) => {
+      if (accounts.length > 0) {
+        currentAccount = accounts[0];
+        updateUIOnConnect();
+      } else {
+        disconnect();
+      }
+    });
+
+    providerInstance.on("chainChanged", (chainId) => {
+      window.location.reload(); // Simple way to handle chain changes
+    });
+
+    providerInstance.on("disconnect", () => {
+      disconnect();
+    });
+  }
+
+  async function resetApp(){
+    await web3Modal.clearCachedProvider();
+    if (providerInstance && providerInstance.disconnect) {
+        await providerInstance.disconnect();
+    }
+    providerInstance = null;
+    provider = null;
+    signer = null;
+    currentAccount=null; currentChainId=null; currentEns=null; sessionSig=null, sessionNonce=null;
+
     const keys = Object.keys(localStorage).filter(k=>k.startsWith("lastwish_"));
     keys.forEach(k=>localStorage.removeItem(k));
-    currentAccount=null; currentChainId=null; currentEns=null; sessionSig=null; sessionNonce=null;
+
     additionalWallets=[]; ownerName.value=""; specialInstructions.value=""; primaryWallet.value="";
     acctEl.textContent=""; chainEl.textContent=""; acctEns.classList.add("hidden"); acctEns.textContent="";
     accountInfo.classList.add("hidden"); connStatus.textContent="Not connected";
     btnSign.disabled=true; btnDisconnect.disabled=true; btnLoadAssets.disabled=true; btnPay.disabled=true; btnPrint.disabled=true;
     assetsWrap.classList.add("hidden"); assetsError.textContent=""; tblTokens.innerHTML=""; tblNFTs.innerHTML="";
+
     refreshWalletsTable();
     if (cfg.n8nWebhookUrl){ fetch(cfg.n8nWebhookUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"app_reset",timestamp:new Date().toISOString()})}).catch(()=>{}); }
+    window.location.reload();
   }
 
-  // Storage
+  // --- PERSISTENCE ---
   function loadAll(){ 
     beneficiaries = S.load(S.key("lastwish_beneficiaries_v3")) || []; 
     assignments = S.load(S.key("lastwish_assignments_v3")) || {}; 
@@ -74,6 +132,62 @@
     S.save(S.key("lastwish_wallets_v3"), additionalWallets);
     S.save(S.key("lastwish_owner_name_v3"), ownerName.value);
     S.save(S.key("lastwish_special_instructions_v3"), specialInstructions.value);
+  }
+
+  // --- UI UPDATE ---
+  function updateUIOnConnect() {
+    const chainInfo = cfg.chains[currentChainId];
+    if (!chainInfo) {
+      connStatus.textContent = `Unsupported Network (ID: ${currentChainId})`;
+      envBadge.textContent = "Unsupported";
+      envBadge.style.background = "var(--red)";
+      btnLoadAssets.disabled = true;
+      btnPay.disabled = true;
+      return;
+    }
+
+    envBadge.textContent = chainInfo.name;
+    envBadge.style.background = "var(--green)";
+
+    acctEl.textContent=currentAccount;
+    chainEl.textContent=`${chainInfo.name} (${currentChainId})`;
+    accountInfo.classList.remove("hidden");
+    connStatus.textContent=`Connected as ${short(currentAccount)}`;
+    primaryWallet.value = currentAccount;
+    chainSelector.value = currentChainId;
+
+    btnSign.disabled=false;
+    btnDisconnect.disabled=false;
+    btnLoadAssets.disabled=false;
+    btnPay.disabled=false;
+
+    setPriceLabels();
+    loadAll();
+    renderBeneficiaries();
+    refreshWalletsTable();
+  }
+
+  // --- WALLET CONNECTION ---
+  async function connect(){
+    connStatus.textContent="Connecting…";
+    try{
+      providerInstance = await web3Modal.connect();
+      subscribeToProviderEvents();
+      provider = new ethers.providers.Web3Provider(providerInstance);
+      signer = provider.getSigner();
+
+      const accounts = await provider.listAccounts();
+      const network = await provider.getNetwork();
+
+      currentAccount = accounts[0];
+      currentChainId = network.chainId;
+
+      updateUIOnConnect();
+
+    }catch(e){
+      console.error(e);
+      connStatus.textContent="Not connected";
+    }
   }
 
   // Multiple Wallets Management
@@ -153,43 +267,6 @@
 
   // Make removeWallet globally accessible
   window.removeWallet = removeWallet;
-
-  // Wallet connect/sign/disconnect
-  async function ensureChain(id){ try{ await window.ethereum.request({method:"wallet_switchEthereumChain",params:[{chainId:"0x"+Number(id).toString(16)}]}); return true;}catch{ return false;} }
-  async function connect(){
-    if(!window.ethereum){ alert("Install MetaMask/Coinbase Wallet."); return; }
-    connStatus.textContent="Connecting…";
-    try{
-      await window.ethereum.request({method:"eth_requestAccounts"});
-      const accounts=await window.ethereum.request({method:"eth_accounts"});
-      const cidHex=await window.ethereum.request({method:"eth_chainId"});
-      const cid=parseInt(cidHex,16);
-      if (cfg.chainId && cid!==cfg.chainId) await ensureChain(cfg.chainId);
-      currentAccount=accounts[0]; currentChainId=cfg.chainId||cid;
-      acctEl.textContent=currentAccount; chainEl.textContent=currentChainId; accountInfo.classList.remove("hidden");
-      connStatus.textContent=`Connected as ${short(currentAccount)}`;
-      btnSign.disabled=false; btnDisconnect.disabled=false; btnLoadAssets.disabled=false; btnPay.disabled=false;
-
-      // Update primary wallet field
-      primaryWallet.value = currentAccount;
-
-      // reverse ENS
-      try{ const r=await fetch(`/.netlify/functions/moralis-proxy?route=reverseEns&address=${currentAccount}`); const d=await r.json(); if(d && d.name){ currentEns=d.name; acctEns.textContent=currentEns; acctEns.classList.remove("hidden"); } }catch{}
-      setPriceLabels();
-
-      window.ethereum.on("accountsChanged",(accs)=>{ if(accs&&accs.length){ currentAccount=accs[0]; acctEl.textContent=currentAccount; connStatus.textContent=`Connected as ${short(currentAccount)}`; primaryWallet.value=currentAccount; sessionSig=null; sessionNonce=null; acctEns.classList.add("hidden"); setPriceLabels(); } });
-      window.ethereum.on("chainChanged",(c)=>{ currentChainId=parseInt(c,16); chainEl.textContent=currentChainId; setPriceLabels(); });
-      loadAll(); renderBeneficiaries(); refreshWalletsTable(); // show existing lists
-    }catch(e){ console.error(e); connStatus.textContent="Not connected"; }
-  }
-  function genNonce(){ return Math.random().toString(36).slice(2)+Date.now().toString(36); }
-  async function signSession(){
-    if(!currentAccount){ alert("Connect first."); return; }
-    sessionNonce=genNonce();
-    const msg=`LastWish.eth session\nAddress: ${currentAccount}\nNonce: ${sessionNonce}\nDate: ${new Date().toISOString()}`;
-    try{ const sig=await window.ethereum.request({method:"personal_sign",params:[msg,currentAccount]}); sessionSig=sig; localStorage.setItem("lastwish_session_sig",sig); localStorage.setItem("lastwish_session_nonce",sessionNonce); sigStatus.innerHTML='<span class="ok">Signed ✓</span>'; if(cfg.n8nWebhookUrl){ fetch(cfg.n8nWebhookUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"session_signed",address:currentAccount,ens:currentEns,nonce:sessionNonce,signature:sig,timestamp:new Date().toISOString()})}).catch(()=>{}); } }catch(e){ sigStatus.innerHTML='<span class="danger">Signature declined</span>'; }
-  }
-  function disconnect(){ resetApp(); }
 
   // Beneficiaries
   function renderBeneficiaries(){
@@ -336,24 +413,23 @@
   }
 
   async function loadAssets(){
-    if(!currentAccount){ alert("Connect first."); return; }
+    if(!currentAccount || !currentChainId){ alert("Connect first."); return; }
+    const chainInfo = cfg.chains[currentChainId];
+    if(!chainInfo){ alert("Unsupported chain."); return; }
+
     assetsWrap.classList.add("hidden"); tblTokens.innerHTML=""; tblNFTs.innerHTML="";
     assetsError.textContent="Loading assets...";
     
     try{
-      // Direct Moralis API call for ERC-20 tokens
-      const tokenResponse = await fetch(`https://deep-index.moralis.io/api/v2.2/${currentAccount}/erc20?chain=eth`, {
-        headers: {
-          'Accept': 'application/json',
-          'X-API-Key': cfg.moralisApiKey
-        }
+      const moralisChainName = chainInfo.moralis_name;
+      
+      // Moralis API call for ERC-20 tokens
+      const tokenResponse = await fetch(`https://deep-index.moralis.io/api/v2.2/${currentAccount}/erc20?chain=${moralisChainName}`, {
+        headers: { 'Accept': 'application/json', 'X-API-Key': cfg.moralisApiKey }
       });
-      
-      if (!tokenResponse.ok) {
-        throw new Error(`Token API error: ${tokenResponse.status}`);
-      }
-      
+      if (!tokenResponse.ok) throw new Error(`Token API error: ${tokenResponse.status}`);
       const tokenData = await tokenResponse.json();
+
       (tokenData.result || tokenData || []).forEach(x=>{
         const tr=document.createElement("tr");
         const sym=x.symbol||"TOK"; const dec=Number(x.decimals||18);
@@ -363,19 +439,13 @@
         tblTokens.appendChild(tr);
       });
       
-      // Direct Moralis API call for NFTs
-      const nftResponse = await fetch(`https://deep-index.moralis.io/api/v2.2/${currentAccount}/nft?chain=eth&format=decimal&limit=10`, {
-        headers: {
-          'Accept': 'application/json',
-          'X-API-Key': cfg.moralisApiKey
-        }
+      // Moralis API call for NFTs
+      const nftResponse = await fetch(`https://deep-index.moralis.io/api/v2.2/${currentAccount}/nft?chain=${moralisChainName}&format=decimal&limit=10`, {
+        headers: { 'Accept': 'application/json', 'X-API-Key': cfg.moralisApiKey }
       });
-      
-      if (!nftResponse.ok) {
-        throw new Error(`NFT API error: ${nftResponse.status}`);
-      }
-      
+      if (!nftResponse.ok) throw new Error(`NFT API error: ${nftResponse.status}`);
       const nftData = await nftResponse.json();
+
       (nftData.result || nftData || []).forEach(x=>{
         const tr=document.createElement("tr");
         const col=x.token_address, id=x.token_id;
@@ -437,21 +507,39 @@
   function saveAssignmentClick(){ const v=validatePercents(); if(!v.ok){ alert(`Percentages for ${v.key} must total 100%. Current total: ${v.total}`); return; } saveAll(); saveStatus.textContent="Saved ✅"; setTimeout(()=>saveStatus.textContent="",2000); if(cfg.n8nWebhookUrl){ fetch(cfg.n8nWebhookUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"assignments_saved_v3",owner:currentAccount,ens:currentEns,beneficiaries,assignments,timestamp:new Date().toISOString()})}).catch(()=>{}); } }
 
   // Payment (mainnet)
-  async function waitForConfirmation(txHash,pollMs=2000,maxMs=180000){ const start=Date.now(); while(Date.now()-start<maxMs){ try{ const r=await window.ethereum.request({method:"eth_getTransactionReceipt",params:[txHash]}); if(r&&r.blockNumber&&r.status==="0x1") return r; }catch{} await new Promise(r=>setTimeout(r,pollMs)); } throw new Error("Timeout waiting for confirmation"); }
   async function pay(){
-    if(!currentAccount){ alert("Connect first."); return; }
+    if(!currentAccount || !signer){ alert("Connect first."); return; }
+    const chainInfo = cfg.chains[currentChainId];
+    if(!chainInfo){ alert("Unsupported chain."); return; }
     try{
       btnPay.disabled = true; payStatus.textContent = "Sending transaction…";
-      const eth = (currentEns && cfg.ensDiscountPercent>0) ? Math.max(Number(cfg.payAmountEth||0)*(1-cfg.ensDiscountPercent/100),0) : Number(cfg.payAmountEth||0);
-      const weiHex = "0x" + (BigInt(Math.floor(eth*1e18))).toString(16);
-      const txHash = await window.ethereum.request({ method:"eth_sendTransaction", params:[{ from: currentAccount, to: cfg.payToAddress, value: weiHex }] });
-      payStatus.textContent="Waiting for confirmation…"; txhashEl.textContent=txHash; txhashEl.href="https://etherscan.io/tx/"+txHash; receiptBox.classList.remove("hidden");
-      const receipt=await waitForConfirmation(txHash);
-      if (receipt && receipt.status==="0x1"){
-        blocknumEl.textContent=parseInt(receipt.blockNumber,16); payStatus.textContent="Payment confirmed ✅"; btnPrint.disabled=false;
-        if(cfg.n8nWebhookUrl){ fetch(cfg.n8nWebhookUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"payment_confirmed",address:currentAccount,ens:currentEns,hash:txHash,blockNumber:parseInt(receipt.blockNumber,16),chainId:currentChainId,amountEth:String(eth),timestamp:new Date().toISOString()})}).catch(()=>{}); }
-      } else { payStatus.textContent="Payment failed ❌"; btnPay.disabled=false; }
-    }catch(err){ console.error(err); payStatus.textContent="Payment failed ❌"; btnPay.disabled=false; alert("Payment failed or rejected."); }
+      const eth = priceWithDiscount();
+      const tx = await signer.sendTransaction({
+        to: cfg.payToAddress,
+        value: ethers.utils.parseEther(eth.toString())
+      });
+      payStatus.textContent="Waiting for confirmation…";
+      txhashEl.textContent=tx.hash;
+      txhashEl.href=`${chainInfo.explorer}/tx/${tx.hash}`;
+      receiptBox.classList.remove("hidden");
+
+      const receipt = await tx.wait(); // ethers.js waits for 1 confirmation by default
+
+      if (receipt.status === 1){
+        blocknumEl.textContent=receipt.blockNumber;
+        payStatus.textContent="Payment confirmed ✅";
+        btnPrint.disabled=false;
+        if(cfg.n8nWebhookUrl){ fetch(cfg.n8nWebhookUrl,{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({event:"payment_confirmed",address:currentAccount,ens:currentEns,hash:tx.hash,blockNumber:receipt.blockNumber,chainId:currentChainId,amountEth:String(eth),timestamp:new Date().toISOString()})}).catch(()=>{}); }
+      } else {
+        payStatus.textContent="Payment failed ❌";
+        btnPay.disabled=false;
+      }
+    }catch(err){
+      console.error(err);
+      payStatus.textContent="Payment failed ❌";
+      btnPay.disabled=false;
+      alert("Payment failed or rejected.");
+    }
   }
 
   // Print (comprehensive legal document)
@@ -743,22 +831,60 @@
   }
   function handlePrint(){ const html=generatePrintableHtml(); const w=window.open("", "_blank"); w.document.open(); w.document.write(html); w.document.close(); }
 
-  // Wire
-  btnResetApp.addEventListener("click", resetApp);
-  $("#btnConnect").addEventListener("click", connect);
-  $("#btnSign").addEventListener("click", signSession);
-  $("#btnDisconnect").addEventListener("click", disconnect);
-  $("#btnAddBeneficiary").addEventListener("click", addBeneficiary);
-  $("#btnLoadAssets").addEventListener("click", loadAssets);
-  $("#btnLoadDemo").addEventListener("click", loadDemoAssets);
-  $("#btnSaveMap").addEventListener("click", saveAssignmentClick);
-  $("#btnPay").addEventListener("click", pay);
-  $("#btnPrint").addEventListener("click", handlePrint);
-  $("#btnAddWallet").addEventListener("click", addWallet);
-  
-  // Auto-save owner name and special instructions
-  $("#ownerName").addEventListener("input", saveAll);
-  $("#specialInstructions").addEventListener("input", saveAll);
+  // --- CHAIN SWITCH LOGIC ---
+  async function handleChainSelection(e) {
+    const newChainId = e.target.value;
+    if (!provider) {
+      // If not connected, just update the selector and wait for user to connect
+      currentChainId = parseInt(newChainId);
+      return;
+    }
+    try {
+      await provider.send("wallet_switchEthereumChain", [{ chainId: "0x" + parseInt(newChainId).toString(16) }]);
+    } catch (switchError) {
+      // This error code indicates that the chain has not been added to MetaMask.
+      if (switchError.code === 4902) {
+        alert("This network is not available in your wallet. Please add it and try again.");
+      } else {
+        alert("Failed to switch chains. Please try again in your wallet.");
+      }
+      // Reset selector to the currently connected chain
+      chainSelector.value = currentChainId;
+    }
+  }
+
+  // --- EVENT LISTENERS ---
+  function init() {
+    btnResetApp.addEventListener("click", resetApp);
+    btnConnect.addEventListener("click", connect);
+    btnSign.addEventListener("click", signSession);
+    btnDisconnect.addEventListener("click", disconnect);
+    btnAddBeneficiary.addEventListener("click", addBeneficiary);
+    btnLoadAssets.addEventListener("click", loadAssets);
+    btnLoadDemo.addEventListener("click", loadDemoAssets);
+    btnSaveMap.addEventListener("click", saveAssignmentClick);
+    btnPay.addEventListener("click", pay);
+    btnPrint.addEventListener("click", handlePrint);
+    btnAddWallet.addEventListener("click", addWallet);
+    chainSelector.addEventListener("change", handleChainSelection);
+
+    ownerName.addEventListener("input", saveAll);
+    specialInstructions.addEventListener("input", saveAll);
+
+    // Check for cached provider and auto-connect
+    if (web3Modal.cachedProvider) {
+      connect();
+    } else {
+      // Set initial chain from selector
+      currentChainId = parseInt(chainSelector.value);
+      const chainInfo = cfg.chains[currentChainId];
+      if(chainInfo) {
+        envBadge.textContent = chainInfo.name;
+      }
+    }
+  }
+
+  init(); // Start the app
 })();
 
 // Global handlePrint function (outside IIFE) - Mobile Compatible
