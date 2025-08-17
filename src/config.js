@@ -3,8 +3,8 @@ window.LASTWISH_CONFIG = {
   payAmountEth: 0.0001,
   ensDiscountPercent: 20,
   n8nWebhookUrl: "", // optional webhook
-  moralisApiKey: "YOUR_MORALIS_API_KEY_HERE",
-  walletConnectProjectId: "YOUR_WALLETCONNECT_PROJECT_ID_HERE",
+  moralisApiKey: "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJub25jZSI6IjcwNjAzOGEwLTc1YzktNDQ0Ny05YTI5LTY5NGIxMDZlMTM0NiIsIm9yZ0lkIjoiNDY0MTgwIiwidXNlcklkIjoiNDc3NTQ1IiwidHlwZUlkIjoiNTY1Y2RlNzUtMDFjYi00M2UxLThlYTgtZTY4NWI0N2EyNjgwIiwidHlwZSI6IlBST0pFQ1QiLCJpYXQiOjE3NTQ3NTU2MjcsImV4cCI6NDkxMDUxNTYyN30.Rru_OTDV_nI01CSLaDjktBZaPL7DhveYKS_ZKbM6738",
+  walletConnectProjectId: "49fef037b7a144df8d09cb34c87686c3",
 
   chains: {
     1: {
