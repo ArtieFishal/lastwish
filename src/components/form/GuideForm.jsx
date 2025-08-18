@@ -11,7 +11,6 @@ import { useAccount, useBalance, usePublicClient } from 'wagmi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ERC20_ABI, ERC20_TOKENS } from '@/lib/constants';
-import { alchemy } from '@/lib/alchemy';
 
 
 // --- Reusable Validation ---
@@ -134,9 +133,14 @@ const GuideForm = () => {
       }
     }
 
-    // 3. Fetch NFTs
+    // 3. Fetch NFTs via our serverless function
     try {
-      const nfts = await alchemy.nft.getNftsForOwner(address);
+      const response = await fetch(`/.netlify/functions/alchemy?address=${address}`);
+      if (!response.ok) {
+        throw new Error(`Netlify function failed with status ${response.status}`);
+      }
+      const nfts = await response.json();
+
       nfts.ownedNfts.forEach(nft => {
         appendAsset({
           assetType: "NFT",
