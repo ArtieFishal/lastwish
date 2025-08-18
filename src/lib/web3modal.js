@@ -14,7 +14,7 @@ if (!projectId) {
 const metadata = {
   name: 'LastWish.eth',
   description: 'A decentralized web application for cryptocurrency estate planning.',
-  url: 'https://web3modal.com', // origin domain
+  url: 'https://lastwish.eth', // Replace with your actual domain
   icons: ['https://avatars.githubusercontent.com/u/37784886']
 }
 
