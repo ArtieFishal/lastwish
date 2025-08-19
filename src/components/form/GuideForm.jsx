@@ -11,10 +11,6 @@ import { useAccount, useBalance, usePublicClient } from 'wagmi';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { ERC20_ABI, ERC20_TOKENS } from '@/lib/constants';
-feat/build-lastwish-app
-=======
-import { alchemy } from '@/lib/alchemy';
-main
 
 
 // --- Reusable Validation ---
@@ -137,7 +133,6 @@ const GuideForm = () => {
       }
     }
 
-feat/build-lastwish-app
     // 3. Fetch NFTs via our serverless function
     try {
       const response = await fetch(`/.netlify/functions/alchemy?address=${address}`);
@@ -146,10 +141,6 @@ feat/build-lastwish-app
       }
       const nfts = await response.json();
 
-    // 3. Fetch NFTs
-    try {
-      const nfts = await alchemy.nft.getNftsForOwner(address);
-      main
       nfts.ownedNfts.forEach(nft => {
         appendAsset({
           assetType: "NFT",
