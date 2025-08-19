@@ -14,6 +14,13 @@ export default defineConfig({
   },
   build: {
     rollupOptions: {
+      onLog(level, log, handler) {
+        if (
+          log.code === 'INVALID_ANNOTATION' ||
+          (typeof log.message === 'string' && log.message.includes('/*#__PURE__*/'))
+        ) return;
+        handler(level, log);
+      },
       input: {
         main: path.resolve(process.cwd(), 'index.html')
       }
