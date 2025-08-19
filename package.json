@@ -68,6 +68,14 @@
     "wagmi": "^2.16.3",
     "zod": "^3.24.4"
   },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.6.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "ox": "0.8.6"
+    }
+  },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
     "@types/react": "^19.1.2",
