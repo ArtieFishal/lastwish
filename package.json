@@ -65,9 +65,16 @@
     "tailwindcss-animate": "^1.0.7",
     "vaul": "^1.1.2",
     "viem": "^2.33.3",
-    "vite-plugin-singlefile": "^2.3.0",
     "wagmi": "^2.16.3",
     "zod": "^3.24.4"
+  },
+  "optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "4.6.1"
+  },
+  "pnpm": {
+    "overrides": {
+      "ox": "0.8.6"
+    }
   },
   "devDependencies": {
     "@eslint/js": "^9.25.0",
